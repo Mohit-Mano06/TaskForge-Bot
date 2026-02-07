@@ -45,6 +45,7 @@ async def setup_hook():
     await bot.load_extension("cogs.social")
     await bot.load_extension("cogs.utility")
     await bot.load_extension("cogs.info")
+    await bot.load_extension("cogs.hidden")
 
 
 @bot.command(help="Shows list of available commands")
@@ -56,7 +57,16 @@ async def help(ctx):
     )
 
     for command in bot.commands:
-        embed.add_field(name=command.name, value=command.help or "No description", inline=False)
+
+        if command.hidden: 
+            continue
+
+        embed.add_field(
+            name=command.name,
+            value=command.help or "No description",
+            inline=False
+            )
+            
     await ctx.send(embed=embed)
 
 

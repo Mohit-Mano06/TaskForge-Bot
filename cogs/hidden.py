@@ -5,8 +5,7 @@ class Hidden(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
-
-    @commands.command(hidden=True)
+    @commands.command(hidden=True, help)
     async def downtime(self,ctx):
         try:
             await ctx.message.delete()

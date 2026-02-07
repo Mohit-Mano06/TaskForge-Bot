@@ -6,25 +6,24 @@ class Utility (commands.Cog):
         self.bot = bot
 
     @commands.command(help = "Roll a dice")
-    async def roll(ctx):
+    async def roll(self,ctx):
         await ctx.send(f"You rolled {random.randint(1,6)} 🎲")
 
-
     @commands.command(help = "Tells your ping")
-async def ping(ctx):
+    async def ping(self,ctx):
 
-    ping = round(bot.latency *1000)
+        latency = round(self.bot.latency *1000)
 
-    if ping > 250:
-        msg = "Just switch to 2g atp 😭"
-    elif ping > 200: 
-        msg = "You have shit ping 💀"
-    elif ping < 100:
-        msg = "Bro lives in the Wifi Router ⚡"
-    else: 
-        msg = "Ping is good stop whining "
+        if latency > 250:
+            msg = "Just switch to 2g atp 😭"
+        elif latency > 200: 
+            msg = "You have shit ping 💀"
+        elif latency < 100:
+            msg = "Bro lives in the Wifi Router ⚡"
+        else: 
+            msg = "Ping is good stop whining "
 
-    await ctx.send(f"{ping}ms - {msg}")
+        await ctx.send(f"{latency}ms - {msg}")
 
 async def setup(bot):
     await bot.add_cog(Utility(bot))
