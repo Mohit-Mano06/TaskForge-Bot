@@ -1,13 +1,16 @@
 import random
 from discord.ext import commands
 
+class Utility (commands.Cog):
+    def __init__(self,bot):
+        self.bot = bot
 
-@bot.command(help = "Roll a dice")
-async def roll(ctx):
-    await ctx.send(f"You rolled {random.randint(1,6)} 🎲")
+    @commands.command(help = "Roll a dice")
+    async def roll(ctx):
+        await ctx.send(f"You rolled {random.randint(1,6)} 🎲")
 
 
-@bot.command(help = "Tells your ping")
+    @commands.command(help = "Tells your ping")
 async def ping(ctx):
 
     ping = round(bot.latency *1000)
