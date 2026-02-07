@@ -9,38 +9,28 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 
-bot = commands.Bot(command_prefix="$", intents=intents,help_command=None)
+ALLOWED_CHANNEL_ID = 1469612261827022949
 
-@bot.event 
-async def on_ready():
-    print("Bot is online Mothafuckars")
+bot = commands.Bot(
+    command_prefix="$", 
+    intents=intents,
+    help_command=None
+    )
+    
 
-## hidden.py LOADING ##
-async def load_cogs():
-    await bot.load_extension("cogs.hidden")
+## ===== STARTUP ===== ##
+
+
 
 @bot.event
-async def setup_hook():
-    await load_cogs()
-
-## === BOT ONLINE === ## 
-@bot.event
 async def on_ready():
-    channel_id = 1469612261827022949
-    channel = bot.get_channel(channel_id)
-
-    if channel:
-        await channel.send("🟢 **Bot is online**")
     print(f"Logged in as {bot.user}")
 
+    channel = bot.get_channel(ALLOWED_CHANNEL_ID)
+    if channel:
+        await channel.send("🟢 **Bot is online**")
 
-
-
-
-## === GENERAL COMMANDS === ##
-## Hooks to other files in cogs ## 
-
-@bot.event 
+@bot.event
 async def setup_hook():
     await bot.load_extension("cogs.social")
     await bot.load_extension("cogs.utility")
@@ -48,8 +38,16 @@ async def setup_hook():
     await bot.load_extension("cogs.hidden")
 
 
+
+
+
+## ===== HELP ===== ##
+
 @bot.command(help="Shows list of available commands")
 async def help(ctx):
+    if ctx.channel.id != ALLOWED_CHANNEL_ID:
+        return  # 🔕 silent outside channel
+
     embed = discord.Embed(
         title="Bot Help",
         description="List of available commands",
@@ -57,22 +55,37 @@ async def help(ctx):
     )
 
     for command in bot.commands:
-
-        if command.hidden: 
+        if command.hidden:
             continue
 
         embed.add_field(
             name=command.name,
             value=command.help or "No description",
             inline=False
-            )
-            
+        )
+
     await ctx.send(embed=embed)
 
+#===== ERROR HANDLING =====##
 
+@bot.event
+async def on_command_error(ctx, error):
+    # 🔕 stay silent everywhere except allowed channel
+    if ctx.channel.id != ALLOWED_CHANNEL_ID:
+        return
+
+    # ignore unknown commands
+    if isinstance(error, commands.CommandNotFound):
+        return
+
+    # ignore permission errors
+    if isinstance(error, commands.CheckFailure):
+        return
+
+    raise error  # real bugs only
 
 
 
 # ==== TOKEN ==== #
 bot.run(TOKEN)
-TOKEN = os.getenv("DISCORD_TOKEN")
+# TOKEN = os.getenv("DISCORD_TOKEN")
