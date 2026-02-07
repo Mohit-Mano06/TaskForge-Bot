@@ -1,9 +1,14 @@
 import discord
 from discord.ext import commands
 import random 
-from config import TOKEN
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
+TOKEN = os.getenv("TOKEN")
+
+
+
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -86,6 +91,5 @@ async def on_command_error(ctx, error):
 
 
 
-# ==== TOKEN ==== #
+## ==== TOKEN ==== ##
 bot.run(TOKEN)
-# TOKEN = os.getenv("DISCORD_TOKEN")
