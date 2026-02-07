@@ -10,10 +10,7 @@ class Hidden(commands.Cog):
     
     @commands.command(hidden=True)
     async def downtime(self,ctx):
-        try:
-            await ctx.message.delete()
-        except:
-            pass
+        await ctx.message.delete()
 
         await ctx.send("🔴 **Bot is offline**")
 
