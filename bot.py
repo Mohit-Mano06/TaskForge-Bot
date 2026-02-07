@@ -3,6 +3,8 @@ from discord.ext import commands
 import random 
 from config import TOKEN
 
+import os
+
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -77,4 +79,10 @@ async def help(ctx):
         embed.add_field(name=command.name, value=command.help or "No description", inline=False)
     await ctx.send(embed=embed)
 
+
+
+
+
+# ==== TOKEN ==== #
 bot.run(TOKEN)
+TOKEN = os.getenv("DISCORD_TOKEN")
