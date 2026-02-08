@@ -47,6 +47,7 @@ async def setup_hook():
     await bot.load_extension("cogs.utility")
     await bot.load_extension("cogs.info")
     await bot.load_extension("cogs.hidden")
+    await bot.load_extension("cogs.reminder")
 
 
 

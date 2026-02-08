@@ -1,0 +1,28 @@
+{
+    "reminders": [
+        {
+            "id": 1,
+            "user_id": 450626076079554573,
+            "channel_id": 1470000358960136287,
+            "message": "Testing",
+            "trigger_time": 1770549779,
+            "status": "done"
+        },
+        {
+            "id": 2,
+            "user_id": 450626076079554573,
+            "channel_id": 1470000400768827503,
+            "message": "Is it working?",
+            "trigger_time": 1770549843,
+            "status": "done"
+        },
+        {
+            "id": 3,
+            "user_id": 450626076079554573,
+            "channel_id": 1469612261827022949,
+            "message": "Testrun",
+            "trigger_time": 1770549891,
+            "status": "done"
+        }
+    ]
+}
