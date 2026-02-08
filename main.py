@@ -29,6 +29,7 @@ if not TOKEN:
 intents = discord.Intents.default()
 intents.message_content = True
 
+#Anime Server channel id (#custom-bot)
 ALLOWED_CHANNEL_ID = 1469612261827022949
 
 bot = commands.Bot(
