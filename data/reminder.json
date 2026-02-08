@@ -79,6 +79,34 @@
             "message": "test",
             "trigger_time": 1770561313,
             "status": "done"
+        },
+        {
+            "id": 11,
+            "user_id": 235274251274289152,
+            "channel_id": 1470000400768827503,
+            "message": "test",
+            "trigger_time": 1770562831,
+            "status": "done"
+        },
+        {
+            "id": 12,
+            "user_id": 235274251274289152,
+            "channel_id": 1470000358960136287,
+            "voice_channel_id": 1470000358960136288,
+            "message": "test",
+            "trigger_time": 1770563712,
+            "status": "done",
+            "type": "voice"
+        },
+        {
+            "id": 13,
+            "user_id": 235274251274289152,
+            "channel_id": 1470000400768827503,
+            "voice_channel_id": 1470000358960136288,
+            "message": "test",
+            "trigger_time": 1770563734,
+            "status": "done",
+            "type": "voice"
         }
     ]
 }

@@ -20,8 +20,7 @@ except ImportError:
 TOKEN = os.getenv("TOKEN")
 print(f"Token retrieved: {'Yes' if TOKEN else 'No'}")
 print(f"Token length: {len(TOKEN) if TOKEN else 'N/A'}")
-print("Loading virtual environment for hosting the bot locally.")
-print("Token may have been received, but the venv might've not loaded in yet. Try again!")
+print(f"Virtual environment: {'VEnv active' if TOKEN else 'Click run again to load venv properly.'}")
 
 # Check if TOKEN exists
 if not TOKEN:
@@ -64,6 +63,8 @@ async def setup_hook():
     await bot.load_extension("cogs.info")
     await bot.load_extension("cogs.hidden")
     await bot.load_extension("cogs.reminder.reminder")
+    await bot.load_extension("cogs.reminder.vcreminder")
+    await bot.load_extension("cogs.voice")
 
 ## ===== HELP ===== ##
 
