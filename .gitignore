@@ -4,4 +4,5 @@ discord_bot_env
 __pycache__/
 cogs/__pycache__
 config_example.py
-data/reminder.json
+reminder.json
+
