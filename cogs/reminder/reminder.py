@@ -90,6 +90,7 @@ class Reminder(commands.Cog):
                 updated = True
         
         if updated:
+            data["reminders"] = [r for r in data["reminders"] if r["status"] != "done"]
             save_reminders(data)
     
     @check_reminders.before_loop
