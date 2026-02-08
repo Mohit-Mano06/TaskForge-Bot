@@ -82,14 +82,6 @@
             "message": "test",
             "trigger_time": 1770561313,
             "status": "done"
-        },
-        {
-            "id": 11,
-            "user_id": 450626076079554573,
-            "channel_id": 1470000400768827503,
-            "message": "test",
-            "trigger_time": 1770561921,
-            "status": "done"
         }
     ]
 >>>>>>> Stashed changes
