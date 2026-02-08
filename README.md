@@ -12,7 +12,7 @@ A simple Discord bot built with Python and `discord.py`, developed by Momo. This
 
 - **Developer**: Momo
 - **Library**: discord.py
-- **Language**: Python 3.8+
+- **Language**: Python 3.12+
 
 ## Commands 🛠️
 
