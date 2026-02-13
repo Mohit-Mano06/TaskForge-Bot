@@ -97,7 +97,7 @@ class GuildPlayer:
             source.cleanup()
             self.current = None
 
-    def disconnect(self, guild):
+    def destroy(self, guild):
         """Disconnect and cleanup the player."""
         return self.bot.loop.create_task(self._cog.cleanup_player(guild))
 

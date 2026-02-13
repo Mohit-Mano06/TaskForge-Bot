@@ -14,8 +14,15 @@ def load_reminders():
     if not os.path.exists(REMINDER_FILE):
         return {"reminders": []}
     
-    with open(REMINDER_FILE, "r") as f:
-        return json.load(f)
+    try:
+        with open(REMINDER_FILE, "r") as f:
+            content = f.read().strip()
+            if not content:
+                return {"reminders": []}
+            return json.loads(content)
+    except (json.JSONDecodeError, Exception):
+        # Reset file if corrupted
+        return {"reminders": []}
 
 
 # Saving reminders in json file
