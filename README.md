@@ -36,9 +36,9 @@ The bot uses the `$` prefix for all commands.
 
 - `$purge <amount>`: Cleans up a specified number of messages (max 100).
 - `$kick <member> [reason]`: Kicks a member from the server and logs the action.
-- `$ban <member> [reason]`: Permanently bans a member and logs the action.
-- `$lock`: Locks the current channel, preventing members from sending messages.
-- `$unlock`: Unlocks the current channel, restoring message permissions.
+- `$ban <member> [reason]`: Permanently bans a member and logs the action. [Under Development]
+- `$lock`: Locks the current channel, preventing members from sending messages. [Under Development]
+- `$unlock`: Unlocks the current channel, restoring message permissions. [Under Development]
 
 ### ⏰ Reminders
 
