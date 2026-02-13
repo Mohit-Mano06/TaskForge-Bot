@@ -7,7 +7,7 @@ import os
 # FFmpeg configuration - PASTE YOUR PATH HERE
 # USE A RAW STRING (r"...") to avoid Windows path errors
 # Example: FFMPEG_EXE_PATH = r"C:\path\to\ffmpeg.exe"
-FFMPEG_EXE_PATH = r"C:\Program Files\ffmpeg\ffmpeg.exe"  # FIXED: added 'r' prefix
+FFMPEG_EXE_PATH = r"cogs\music\ffmpeg\ffmpeg.exe"  # FIXED: added 'r' prefix
 
 # YTDL Configuration
 ytdl_format_options = {
@@ -26,7 +26,7 @@ ytdl_format_options = {
 
 ffmpeg_options = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn',
+    'options': '-vn -ar 48000 -ac 2',
 }
 
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
@@ -97,7 +97,7 @@ class GuildPlayer:
             source.cleanup()
             self.current = None
 
-    def destroy(self, guild):
+    def disconnect(self, guild):
         """Disconnect and cleanup the player."""
         return self.bot.loop.create_task(self._cog.cleanup_player(guild))
 

@@ -36,7 +36,7 @@ class Voice(commands.Cog):
             await ctx.send(f"❌ Failed to join voice channel: {str(e)}")
 
     @commands.command(help="Disconnect from the current voice channel")
-    async def disconnect(self, ctx):
+    async def old_disconnect(self, ctx):
         if ctx.guild.id not in self.voice_clients:
             await ctx.send("❌ I'm not in any voice channel!")
             return
@@ -50,7 +50,7 @@ class Voice(commands.Cog):
             await ctx.send("❌ I'm not connected to a voice channel!")
 
     @commands.command(help="Play a sound file in voice channel")
-    async def playsound(self, ctx, sound_name: str = None):
+    async def old_play(self, ctx, sound_name: str = None):
         # Check if bot is in a voice channel
         if ctx.guild.id not in self.voice_clients:
             await ctx.send("❌ I'm not in a voice channel! Use `$connect` first.")
