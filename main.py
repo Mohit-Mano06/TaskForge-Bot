@@ -61,15 +61,15 @@ async def on_ready():
 # ===== COGS ===== # (For loading cogs and commands)
 @bot.event
 async def setup_hook():
-    await bot.load_extension("cogs.social")
-    await bot.load_extension("cogs.utility")
-    await bot.load_extension("cogs.info")
-    await bot.load_extension("cogs.hidden")
+    await bot.load_extension("cogs.general.social")
+    await bot.load_extension("cogs.general.utility")
+    await bot.load_extension("cogs.general.info")
+    await bot.load_extension("cogs.admin.hidden")
     await bot.load_extension("cogs.reminder.reminder")
     await bot.load_extension("cogs.reminder.vcreminder")
-    await bot.load_extension("cogs.voice")
     await bot.load_extension("cogs.music.music_player")
     await bot.load_extension("cogs.admin.moderation")
+    await bot.load_extension("cogs.confession")
 
 ## ===== HELP ===== ##
 
