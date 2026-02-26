@@ -186,5 +186,45 @@ class MusicPlayer(commands.Cog):
         embed = discord.Embed(title=f'Upcoming - Next {len(upcoming)}', description=fmt)
         await ctx.send(embed=embed)
 
+    @commands.command(help="Show current voice channel status")
+    async def vcstat(self, ctx):
+        # Prepare status message
+        status_lines = []
+        
+        # Add ping information
+        websocket_ping = self.bot.latency * 1000
+        if websocket_ping > 250:
+            ping_status = "🔴 High"
+        elif websocket_ping > 150:
+            ping_status = "🟡 Medium" 
+        else:
+            ping_status = "🟢 Low"
+            
+        status_lines.append(f"📡 WebSocket Ping: {websocket_ping:.2f}ms ({ping_status})")
+        
+        # Add voice channel information
+        player = self.players.get(ctx.guild.id)
+        if player and player.vc and player.vc.is_connected():
+            channel = player.vc.channel
+            members = [member.display_name for member in channel.members if not member.bot]
+            member_count = len([m for m in channel.members if not m.bot])
+            
+            status_lines.append(f"🔊 Currently in: {channel.name}")
+            status_lines.append(f"👥 Members: {member_count}")
+            if members:
+                status_lines.append(f"📋 Members: {', '.join(members)}")
+        else:
+            status_lines.append("🔇 Not currently in a voice channel")
+        
+        await ctx.send("\n".join(status_lines))
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        """Handle voice state updates to cleanup players if bot is disconnected."""
+        if member == self.bot.user and after.channel is None:
+            # Bot was disconnected
+            if member.guild.id in self.players:
+                await self.cleanup_player(member.guild)
+
 async def setup(bot):
     await bot.add_cog(MusicPlayer(bot))
