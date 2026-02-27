@@ -70,7 +70,7 @@ async def setup_hook():
     await bot.load_extension("cogs.music.music_player")
     await bot.load_extension("cogs.admin.moderation")
     await bot.load_extension("cogs.confession")
-
+    await bot.load_extension("cogs.announcement")
 ## ===== HELP ===== ##
 
 @bot.command(help="Shows list of available commands")
@@ -110,6 +110,28 @@ async def on_command_error(ctx, error):
         return
 
     raise error  # real bugs only
+    
+@bot.command(name="sync", hidden=True)
+@commands.is_owner()
+async def sync(ctx):
+    try:
+        synced = await bot.tree.sync()
+        await ctx.send(f"Synced {len(synced)} commands.")
+    except Exception as e:
+        await ctx.send(f"Error syncing: {e}")
+
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+    if isinstance(error, discord.app_commands.CommandOnCooldown):
+        await interaction.response.send_message(f"Command is on cooldown. Try again in {error.retry_after:.2f}s", ephemeral=True)
+    elif isinstance(error, discord.app_commands.CheckFailure):
+        await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
+    else:
+        print(f"Interaction error: {error}")
+        if not interaction.response.is_done():
+            await interaction.response.send_message("An unexpected error occurred.", ephemeral=True)
+        else:
+            await interaction.followup.send("An unexpected error occurred.", ephemeral=True)
 
 ## ==== TOKEN ==== ##
 bot.run(TOKEN)

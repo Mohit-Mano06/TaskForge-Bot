@@ -1,0 +1,16 @@
+{
+    "releases": [
+        {
+            "version": "1.1.0",
+            "type": "\ud83d\udd25 Major Release",
+            "message": "\u2022 Added Confession Feature ( $confess {your confession}) \n\u2022 New Announcement feature (this current message for new updates)",
+            "timestamp": "2026-02-27 06:39:31.572410+00:00"
+        },
+        {
+            "version": "1.1.1",
+            "type": "\ud83d\udd27 Patch Update",
+            "message": "\u2022 Added major, feature, patch, hotfix release types with reactions \n\u2022 New command ($latest) which fetches the latest version and displays it",
+            "timestamp": "2026-02-27 06:43:38.323203+00:00"
+        }
+    ]
+}
