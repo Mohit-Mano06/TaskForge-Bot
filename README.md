@@ -8,6 +8,8 @@ A high-performance Discord bot built with Python and `discord.py`, developed by 
 - **Moderation Toolset**: Advanced commands for server management including purge, kick, ban, and channel locking.
 - **Multi-Server Logging**: Intelligent, automated logging system that routes moderation events to server-specific channels.
 - **Reminders**: Set personal or voice channel-wide reminders with natural time formats.
+- **Announcements**: Broadcast version updates and news with dedicated embeds (Owner only).
+- **Confessions**: Safely share anonymous messages in server-specific channels.
 - **Utilities**: Advanced latency monitoring, dice rolling, and uptime tracking.
 - **Voice Tools**: Connect to voice channels, monitor connection stats, and manage members.
 
@@ -45,6 +47,15 @@ The bot uses the `$` prefix for all commands.
 - `$reminder <time> <message>`: Set a personal reminder (e.g., `$reminder 10m Coffee break`).
 - `$vcreminder <time> <message>`: Remind everyone in your current voice channel.
 - `$vcmembers`: Quick list of everyone currently in your voice channel.
+
+### 📢 Announcements (Owner Only)
+
+- `$announce <version> <type> <message>`: Send a new release announcement.
+- `$latest`: View details of the most recent bot update.
+
+### 📩 Confessions
+
+- `$confess <message>`: Post an anonymous message to the confession channel (aliases: `$confession`).
 
 ### 🛠️ Utilities
 
