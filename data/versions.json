@@ -11,6 +11,12 @@
             "type": "\ud83d\udd27 Patch Update",
             "message": "\u2022 Added major, feature, patch, hotfix release types with reactions \n\u2022 New command ($latest) which fetches the latest version and displays it",
             "timestamp": "2026-02-27 06:43:38.323203+00:00"
+        },
+        {
+            "version": "1.1.1",
+            "type": "\u26a1 Hotfix",
+            "message": "\u2022 Fixed help command not working (Issue with discord embed message limit of 25 lines)",
+            "timestamp": "2026-03-03 07:15:01.711838+00:00"
         }
     ]
 }
