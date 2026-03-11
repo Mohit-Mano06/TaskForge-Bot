@@ -1,6 +1,11 @@
 import discord
 from discord.ext import commands
 import datetime
+import asyncio
+import sys
+
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 #Logging bot commands
 from logger import send_log 
@@ -106,6 +111,10 @@ async def help(ctx):
 
 @bot.event
 async def on_command_error(ctx, error):
+    # Print the error to console
+    import traceback
+    traceback.print_exception(type(error), error, error.__traceback__)
+
     # 🔕 stay silent everywhere except allowed channel
     if ctx.channel.id != ALLOWED_CHANNEL_ID:
         return

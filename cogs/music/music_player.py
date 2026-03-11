@@ -7,7 +7,8 @@ import os
 # FFmpeg configuration - PASTE YOUR PATH HERE
 # USE A RAW STRING (r"...") to avoid Windows path errors
 # Example: FFMPEG_EXE_PATH = r"C:\path\to\ffmpeg.exe"
-FFMPEG_EXE_PATH = r"cogs\music\ffmpeg\ffmpeg.exe"  # FIXED: added 'r' prefix
+current_dir = os.path.dirname(os.path.abspath(__file__))
+FFMPEG_EXE_PATH = os.path.join(current_dir, "ffmpeg", "ffmpeg.exe")
 
 # YTDL Configuration
 ytdl_format_options = {
@@ -70,32 +71,46 @@ class GuildPlayer:
     async def player_loop(self):
         """Main player loop."""
         await self.bot.wait_until_ready()
-
-        while not self.bot.is_closed():
-            self.next.clear()
-
-            try:
-                # Wait for the next song. If we timeout cancel the player and leave...
-                async with asyncio.timeout(300):  # 5 minutes
-                    source = await self.queue.get()
-            except (asyncio.TimeoutError, TimeoutError):
-                return self.destroy(self._guild)
-
-            self.current = source
-            
-            # Ensure we are actually connected...
-            if not self.vc or not self.vc.is_connected():
-                # Try to re-establish connection if possible, or cleanup
-                return self.destroy(self._guild)
-
-            self.vc.play(source, after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set))
-            await self._channel.send(f"🎵 **Now playing:** `{source.title}`")
-
-            await self.next.wait()
-
-            # Make sure the FFmpeg process is cleaned up.
-            source.cleanup()
-            self.current = None
+        
+        try:
+            while not self.bot.is_closed():
+                self.next.clear()
+    
+                try:
+                    # Wait for the next song. If we timeout cancel the player and leave...
+                    async with asyncio.timeout(300):  # 5 minutes
+                        source = await self.queue.get()
+                except (asyncio.TimeoutError, TimeoutError):
+                    return self.destroy(self._guild)
+    
+                self.current = source
+                print(f"[Player] Got source: {source.title}")
+                
+                # Ensure we are actually connected...
+                if not self.vc or not self.vc.is_connected():
+                    # Try to re-establish connection if possible, or cleanup
+                    print("[Player] Not connected to VC, destroying player.")
+                    return self.destroy(self._guild)
+    
+                try:
+                    self.vc.play(source, after=lambda e: self.bot.loop.call_soon_threadsafe(self.next.set) if e is None else print(f"[Player Error] {e}"))
+                except Exception as e:
+                    import traceback
+                    print(f"[Player Exception when calling play()] {e}")
+                    traceback.print_exc()
+                    
+                await self._channel.send(f"🎵 **Now playing:** `{source.title}`")
+    
+                await self.next.wait()
+    
+                # Make sure the FFmpeg process is cleaned up.
+                source.cleanup()
+                self.current = None
+        except Exception as e:
+            import traceback
+            print(f"[Player Fatal Error] {e}")
+            traceback.print_exc()
+            self.destroy(self._guild)
 
     def destroy(self, guild):
         """Disconnect and cleanup the player."""

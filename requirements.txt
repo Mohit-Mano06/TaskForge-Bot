@@ -1,5 +1,4 @@
-discord.py
-PyNaCl
+discord.py[voice]
 urllib3
 yt-dlp
 python-dotenv

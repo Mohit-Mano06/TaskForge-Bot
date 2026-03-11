@@ -17,6 +17,18 @@
             "type": "\u26a1 Hotfix",
             "message": "\u2022 Fixed help command not working (Issue with discord embed message limit of 25 lines)",
             "timestamp": "2026-03-03 07:15:01.711838+00:00"
+        },
+        {
+            "version": "1.1.1",
+            "type": "\ud83d\udd25 Major Release",
+            "message": "BOT IS DOWN",
+            "timestamp": "2026-03-10 18:13:12.410141+00:00"
+        },
+        {
+            "version": "1.1.1",
+            "type": "\ud83d\udd25 Major Release",
+            "message": "BOT IS DOWN",
+            "timestamp": "2026-03-10 18:13:13.064856+00:00"
         }
     ]
 }
