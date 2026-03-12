@@ -3,3 +3,5 @@ discord.py
 urllib3
 yt-dlp
 python-dotenv
+
+#PyNaCl
