@@ -7,5 +7,6 @@ config_example.py
 venv
 start.bat
 cogs/setupguide.py
+test_ytdlp.py
 
 data/reminder.json

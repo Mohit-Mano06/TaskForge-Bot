@@ -195,11 +195,23 @@ class MusicPlayer(commands.Cog):
         player = self.get_player(ctx)
         if player.queue.empty():
             return await ctx.send("Empty queue.")
-        
         upcoming = list(player.queue._queue)
         fmt = '\n'.join(f'{i+1}. `{song.title}`' for i, song in enumerate(upcoming))
         embed = discord.Embed(title=f'Upcoming - Next {len(upcoming)}', description=fmt)
         await ctx.send(embed=embed)
+
+    
+    @commands.command(name="clear", help="Clears the music queue")
+    async def clear(self, ctx):
+        player = self.get_player(ctx)
+
+        if player.queue.empty():
+            return await ctx.send("Queue is already empty.")
+        
+        player.queue = asyncio.Queue()
+        
+        await ctx.send("🧹 Queue cleared.")
+
 
     @commands.command(help="Show current voice channel status")
     async def vcstat(self, ctx):

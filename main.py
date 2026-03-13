@@ -4,6 +4,7 @@ import datetime
 import asyncio
 import sys
 
+
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -26,6 +27,12 @@ TOKEN = os.getenv("TOKEN")
 print(f"Token retrieved: {'Yes' if TOKEN else 'No'}")
 print(f"Token length: {len(TOKEN) if TOKEN else 'N/A'}")
 print(f"Virtual environment: {'VEnv active' if TOKEN else 'Click run again to load venv properly.'}")
+
+MISTRAL_API_KEY = os.getenv("MISTRAL_TOKEN")
+print(f"Mistral Token retrieved: {'Yes' if MISTRAL_API_KEY else 'No'}")
+print(f"Token length: {len(MISTRAL_API_KEY) if MISTRAL_API_KEY else 'N/A'}")
+print(f"Virtual environment: {'VEnv active' if MISTRAL_API_KEY else 'Click run again to load venv properly.'}")
+
 
 # Check if TOKEN exists
 if not TOKEN:
@@ -98,6 +105,8 @@ async def setup_hook():
     await bot.load_extension("cogs.confession")
     await bot.load_extension("cogs.announcement")
     await bot.load_extension("cogs.setupguide")
+    await bot.load_extension("cogs.mistral.ai")
+    await bot.load_extension("cogs.mistral.bot_chat.ai_battle")
 ## ===== HELP ===== ##
 
 @bot.command(help="Shows list of available commands")
@@ -172,6 +181,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
             await interaction.response.send_message("An unexpected error occurred.", ephemeral=True)
         else:
             await interaction.followup.send("An unexpected error occurred.", ephemeral=True)
+
 
 ## ==== TOKEN ==== ##
 bot.run(TOKEN)
