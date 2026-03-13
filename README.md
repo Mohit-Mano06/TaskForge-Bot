@@ -5,6 +5,8 @@ A high-performance Discord bot built with Python and `discord.py`, developed by 
 ## Features ✨
 
 - **Music Player**: High-fidelity YouTube streaming with queue support and local FFmpeg processing.
+- **AI DJ**: Mistral AI-powered playlist generation based on mood, genre, or specific requests.
+- **AI Battle**: Interactive bot roasts between TaskForge and other bots (like Tamabot) using Mistral AI.
 - **Moderation Toolset**: Advanced commands for server management including purge, kick, ban, and channel locking.
 - **Multi-Server Logging**: Intelligent, automated logging system that routes moderation events to server-specific channels.
 - **Reminders**: Set personal or voice channel-wide reminders with natural time formats.
@@ -28,9 +30,11 @@ The bot uses the `$` prefix for all commands.
 ### 🎵 Music
 
 - `$play <search/url>`: Plays a song from YouTube or adds it to the queue.
+- `$dj <request>`: Uses Mistral AI to generate and queue a playlist based on your prompt.
 - `$pause`: Pauses the current track.
 - `$resume`: Resumes the paused track.
 - `$skip`: Skips to the next song in the queue.
+- `$clear`: Clears the current music queue.
 - `$stop`: Stops the music and clears the queue.
 - `$queue`: Shows the current upcoming tracks.
 
@@ -52,6 +56,11 @@ The bot uses the `$` prefix for all commands.
 
 - `$announce <version> <type> <message>`: Send a new release announcement.
 - `$latest`: View details of the most recent bot update.
+
+### 🤖 AI & Bot Interaction
+
+- `$dj <request>`: Generates an AI playlist.
+- `$battle`: Challenges another bot (e.g., Tamabot) to a roast battle.
 
 ### 📩 Confessions
 
@@ -100,7 +109,7 @@ The bot uses the `$` prefix for all commands.
 
 5. **Environment Variables**:
 
-    Create a `.env` file with your `TOKEN`.
+    Create a `.env` file with your `TOKEN` and `MISTRAL_TOKEN`.
 
 6. **Run the bot**:
 
