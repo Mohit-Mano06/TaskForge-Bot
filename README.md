@@ -17,7 +17,7 @@ A high-performance Discord bot built with Python and `discord.py`, developed by 
 
 - **Developers**: Momo ([Mohit](https://github.com/Mohit-Mano06)
 - **Library**: discord.py
-- **Language**: Python 3.12+ (Currently on 3.14)
+- **Language**: Python 3.12+ (Currently run on 3.14)
 - **Audio Engine**: FFmpeg (Local binary supported)
 - **Security**: Role-based permissions (is_bot_admin check)
 
