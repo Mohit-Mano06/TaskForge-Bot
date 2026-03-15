@@ -2,7 +2,7 @@ import os
 from discord.ext import commands
 from mistralai.client import Mistral
 
-class AI(commands.Cog):
+class AIDJ(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
@@ -36,7 +36,7 @@ class AI(commands.Cog):
 
         async with ctx.typing():
             response = await self.client.chat.complete_async(
-                model="mistral-small-latest",
+                model="open-mistral-7b",
                 messages=[
                     {"role": "system", "content": self.dj_prompt},
                     {"role": "user", "content": question}
@@ -71,4 +71,4 @@ class AI(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(AI(bot))
+    await bot.add_cog(AIDJ(bot))
