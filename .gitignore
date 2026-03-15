@@ -8,5 +8,8 @@ venv
 start.bat
 cogs/setupguide.py
 test_ytdlp.py
+warnings.json
+r6_tracker.py
+
 
 data/reminder.json

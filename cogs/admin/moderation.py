@@ -3,6 +3,8 @@
 import discord 
 from discord.ext import commands
 from datetime import datetime, timezone
+import json
+import os
 from .logging import send_log
 
 ALLOWED_ROLE_IDS = [1471835077787783270, 1470002009812766751]
@@ -17,6 +19,20 @@ is_bot_admin = commands.check(is_bot_admin_check)
 class Moderation(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.warnings_path = os.path.join(os.path.dirname(__file__), "warnings.json")
+    
+    def load_warnings(self):
+        if not os.path.exists(self.warnings_path):
+            return {}
+        try:
+            with open(self.warnings_path, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}
+        
+    def save_warnings(self, data):
+        with open(self.warnings_path, "w") as f:
+            json.dump(data, f, indent=4)
 
 ## PURGE COMMAND 
     @commands.command()
@@ -118,6 +134,61 @@ class Moderation(commands.Cog):
 
         await send_log(self.bot, ctx.guild, embed)
 
+## Warn Command
+    @commands.command()
+    @is_bot_admin
+    async def warn(self, ctx, member: discord.Member, *, reason = "No Reason Provided"):
+        if await self.bot.is_owner(ctx.author):
+            pass # Owner can warn anyone
+        else:
+            if member == ctx.author:
+                return await ctx.send("You can't warn yourself!")
+            if member.top_role >= ctx.author.top_role:
+                return await ctx.send("You can't warn someone with a higher or equal role!")
+        if member == self.bot.user:
+            return await ctx.send("You can't warn me!")
+        
+        warnings = self.load_warnings()
+        if str(member.id) not in warnings:
+            warnings[str(member.id)] = []
+        
+        warnings[str(member.id)].append({
+            "moderator": ctx.author.id,
+            "reason": reason,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        self.save_warnings(warnings)
+        
+        try:
+            dm_embed = discord.Embed(
+                title="⚠️ You received a warning",
+                color=discord.Color.orange(),
+                timestamp=datetime.now(timezone.utc)
+            )
+    
+            dm_embed.add_field(name="Server", value=ctx.guild.name, inline=False)
+            dm_embed.add_field(name="Moderator", value=ctx.author.name, inline=False)
+            dm_embed.add_field(name="Reason", value=reason, inline=False)
+
+            await member.send(embed=dm_embed)
+
+        except discord.Forbidden:
+            await ctx.send(f"⚠️ Couldn't DM {member.mention}, they may have DMs disabled.")
+
+        await ctx.send(f"⚠️ {member.mention} has been warned. Reason: {reason}")
+        
+        embed = discord.Embed(
+            title = "⚠️ Member Warned",
+            color = discord.Color.orange(),
+            timestamp = datetime.now(timezone.utc)
+        )
+        embed.add_field(name="Moderator", value=ctx.author.mention, inline=False)
+        embed.add_field(name="Member", value=member.mention, inline=False)
+        embed.add_field(name="Reason", value=reason, inline=False)
+
+        await send_log(self.bot, ctx.guild, embed)
+
 ## Lock Command
     @commands.command()
     @is_bot_admin
@@ -152,5 +223,6 @@ class Moderation(commands.Cog):
         embed.add_field(name="Channel", value=ctx.channel.mention, inline=False)
         await send_log(self.bot, ctx.guild, embed)
 
+    
 async def setup(bot):
     await bot.add_cog(Moderation(bot))
