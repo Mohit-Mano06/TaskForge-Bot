@@ -105,15 +105,10 @@ async def setup_hook():
     await bot.load_extension("cogs.announcement")
     await bot.load_extension("cogs.setupguide")
     await bot.load_extension("cogs.mistral.ai")
-    await bot.load_extension("cogs.mistral.bot_chat.ai_battle")
-<<<<<<< Updated upstream
-=======
-    await bot.load_extension("cogs.mistral.ai")
     await bot.load_extension("cogs.mistral.bot_chat.chat")
     await bot.load_extension("cogs.status")
 
 
->>>>>>> Stashed changes
 ## ===== HELP ===== ##
 
 @bot.command(help="Shows list of available commands")
