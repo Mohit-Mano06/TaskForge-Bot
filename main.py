@@ -97,7 +97,6 @@ async def setup_hook():
     await bot.load_extension("cogs.general.social")
     await bot.load_extension("cogs.general.utility")
     await bot.load_extension("cogs.general.info")
-    await bot.load_extension("cogs.admin.hidden")
     await bot.load_extension("cogs.reminder.reminder")
     await bot.load_extension("cogs.reminder.vcreminder")
     await bot.load_extension("cogs.music.music_player")
@@ -106,7 +105,10 @@ async def setup_hook():
     await bot.load_extension("cogs.announcement")
     await bot.load_extension("cogs.setupguide")
     await bot.load_extension("cogs.mistral.ai")
-    await bot.load_extension("cogs.mistral.bot_chat.ai_battle")
+    await bot.load_extension("cogs.mistral.bot_chat.chat")
+    await bot.load_extension("cogs.status")
+
+
 ## ===== HELP ===== ##
 
 @bot.command(help="Shows list of available commands")

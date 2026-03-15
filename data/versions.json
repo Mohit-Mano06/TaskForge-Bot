@@ -41,6 +41,21 @@
             "type": "\u2728 New Feature",
             "message": "\u2022 Added new feature that when the bot goes offline, it sends a message \"Bot Offline\" before terminating the process (check #custom-bot for the latest status of bot)",
             "timestamp": "2026-03-12 09:04:00.146310+00:00"
+<<<<<<< Updated upstream
+=======
+        },
+        {
+            "version": "1.2",
+            "type": "\ud83d\udd25 Major Release",
+            "message": "\u2022 Added AI \ud83c\udfa7 DJ Feature",
+            "timestamp": "2026-03-13 12:40:43.019828+00:00"
+        },
+        {
+            "version": "1.3",
+            "type": "\ud83d\udd25 Major Release",
+            "message": "\u2022 TaskForge can now talk with Tamabot (Some intense rivalry between bots now)",
+            "timestamp": "2026-03-13 16:13:57.059408+00:00"
+>>>>>>> Stashed changes
         },
         {
             "version": "1.2",
