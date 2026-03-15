@@ -11,12 +11,5 @@ test_ytdlp.py
 warnings.json
 r6_tracker.py
 
-<<<<<<< Updated upstream
-=======
-test_ytdlp.py
-r6_tracker.py
-warnings.json
-
->>>>>>> Stashed changes
 
 data/reminder.json
