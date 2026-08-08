@@ -5,8 +5,8 @@ import json
 import os
 import time
 import random
-import datetime
-import timezone
+from datetime import datetime, timezone
+import time
 
 class Economy(commands.Cog):
     def __init__(self, bot):
@@ -45,7 +45,7 @@ class Economy(commands.Cog):
         )
 
     @commands.command(name="balance", aliases=["bal"])
-    async def balance(self, ctx, member: discord.Member = None):
+    async def balance(self, ctx, member: discord.Member | None = None):
         """Displays the wallet, bank balance, level, and XP of a user."""
         if not self._check_db():
             await ctx.send("❌ PostgreSQL database connection is not configured/available.")
@@ -61,7 +61,7 @@ class Economy(commands.Cog):
             if member.id == ctx.author.id:
                 user_data, starter_granted = await self._ensure_starter_bonus(ctx)
             else:
-                user_data = await db.get_or_create_user(self.bot.db_pool, member.id, ctx.guild.id)
+                user_data = await db.get_or_create_user(self.bot.db_pool, str(member.id), ctx.guild.id)
             
             embed = discord.Embed(
                 title=f"💰 {member.display_name}'s Economy Profile",
@@ -183,7 +183,7 @@ class Economy(commands.Cog):
             await ctx.send(f"❌ An error occurred during the transaction: {e}")
 
     @commands.command(name="inventory", aliases=["inv"])
-    async def inventory(self, ctx, member: discord.Member = None):
+    async def inventory(self, ctx, member: discord.Member | None = None):
         """Displays the inventory of a user."""
         if not self._check_db():
             await ctx.send("❌ PostgreSQL database connection is not configured/available.")
@@ -195,7 +195,7 @@ class Economy(commands.Cog):
             return
 
         try:
-            items = await db.get_inventory(self.bot.db_pool, member.id, ctx.guild.id)
+            items = await db.get_inventory(self.bot.db_pool, str(member.id), ctx.guild.id)
             
             if not items:
                 await ctx.send(f"🎒 {member.display_name}'s inventory is currently empty.")

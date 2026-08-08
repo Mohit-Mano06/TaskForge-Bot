@@ -44,7 +44,7 @@ async def update_balances(
     wallet_change: int,
     bank_change: int,
     tx_type: str,
-    tx_desc: str = None
+    tx_desc: str | None = None
 ) -> dict:
     """Updates the user's wallet and bank balances, and inserts an audit log transaction."""
     user_id = str(user_id)
