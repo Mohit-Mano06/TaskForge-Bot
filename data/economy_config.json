@@ -1,0 +1,139 @@
+{
+  "text_activity": {
+    "cooldown_seconds": 60,
+    "min_length": 10,
+    "reward_min": 5,
+    "reward_max": 10,
+    "xp_min": 2,
+    "xp_max": 4
+  },
+  "vc_activity": {
+    "interval_minutes": 10,
+    "reward_per_interval": 5,
+    "xp_per_interval": 2
+  },
+  "starter_bonus": {
+    "enabled": true,
+    "wallet": 100
+  },
+  "daily_rewards": {
+    "probabilities": {
+      "common": 70,
+      "uncommon": 20,
+      "rare": 8,
+      "legendary": 2
+    },
+    "rewards": {
+      "common": {
+        "coins_min": 50,
+        "coins_max": 200,
+        "xp_min": 10,
+        "xp_max": 30,
+        "items": ["apple", "cookie", "energy_drink"]
+      },
+      "uncommon": {
+        "coins_min": 201,
+        "coins_max": 500,
+        "xp_min": 31,
+        "xp_max": 60,
+        "items": ["lucky_coin", "cookie"]
+      },
+      "rare": {
+        "coins_min": 501,
+        "coins_max": 1200,
+        "xp_min": 61,
+        "xp_max": 120,
+        "items": ["lucky_clover", "golden_ticket", "treasure_map"]
+      },
+      "legendary": {
+        "coins_min": 1201,
+        "coins_max": 5000,
+        "xp_min": 121,
+        "xp_max": 300,
+        "items": ["dragon_egg", "galaxy_crate", "mythic_gem"]
+      }
+    }
+  },
+  "items": {
+    "apple": {
+      "name": "🍎 Apple",
+      "description": "A crisp red apple.",
+      "rarity": "Common",
+      "buy_price": 50,
+      "sell_price": 20,
+      "daily_only": false
+    },
+    "cookie": {
+      "name": "🍪 Cookie",
+      "description": "A delicious chocolate chip cookie.",
+      "rarity": "Common",
+      "buy_price": 75,
+      "sell_price": 30,
+      "daily_only": false
+    },
+    "energy_drink": {
+      "name": "🥤 Energy Drink",
+      "description": "Tastes like battery acid, but you're awake!",
+      "rarity": "Common",
+      "buy_price": 100,
+      "sell_price": 40,
+      "daily_only": false
+    },
+    "lucky_coin": {
+      "name": "🪙 Lucky Coin",
+      "description": "A coin that feels slightly warm to the touch.",
+      "rarity": "Uncommon",
+      "buy_price": 500,
+      "sell_price": 200,
+      "daily_only": false
+    },
+    "lucky_clover": {
+      "name": "🍀 Lucky Clover",
+      "description": "A four-leaf clover. Luck is on your side!",
+      "rarity": "Rare",
+      "buy_price": 2500,
+      "sell_price": 1000,
+      "daily_only": false
+    },
+    "golden_ticket": {
+      "name": "🎫 Golden Ticket",
+      "description": "An exclusive ticket to the TaskForge VIP lounge.",
+      "rarity": "Rare",
+      "buy_price": 0,
+      "sell_price": 0,
+      "daily_only": true
+    },
+    "treasure_map": {
+      "name": "🗺️ Treasure Map",
+      "description": "A weathered map leading to... something.",
+      "rarity": "Rare",
+      "buy_price": 2500,
+      "sell_price": 1000,
+      "daily_only": false
+    },
+    "dragon_egg": {
+      "name": "🐉 Dragon Egg",
+      "description": "It's pulsing with a faint heat.",
+      "rarity": "Legendary",
+      "buy_price": 0,
+      "sell_price": 0,
+      "daily_only": true
+    },
+    "galaxy_crate": {
+      "name": "🌌 Galaxy Crate",
+      "description": "Contains fragments of a dying star.",
+      "rarity": "Legendary",
+      "buy_price": 0,
+      "sell_price": 0,
+      "daily_only": true
+    },
+    "mythic_gem": {
+      "name": "💎 Mythic Gem",
+      "description": "A gem that glows with an otherworldly light.",
+      "rarity": "Legendary",
+      "buy_price": 0,
+      "sell_price": 0,
+      "daily_only": true
+    }
+  }
+}

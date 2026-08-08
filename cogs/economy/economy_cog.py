@@ -5,6 +5,8 @@ import json
 import os
 import time
 import random
+import datetime
+import timezone
 
 class Economy(commands.Cog):
     def __init__(self, bot):
@@ -179,6 +181,162 @@ class Economy(commands.Cog):
             await ctx.send(f"✅ Withdrew 🪙 `{with_amount:,}` coins from your bank!")
         except Exception as e:
             await ctx.send(f"❌ An error occurred during the transaction: {e}")
+
+    @commands.command(name="inventory", aliases=["inv"])
+    async def inventory(self, ctx, member: discord.Member = None):
+        """Displays the inventory of a user."""
+        if not self._check_db():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+
+        member = member or ctx.author
+        if member.bot:
+            await ctx.send("🤖 Bots do not have an inventory.")
+            return
+
+        try:
+            items = await db.get_inventory(self.bot.db_pool, member.id, ctx.guild.id)
+            
+            if not items:
+                await ctx.send(f"🎒 {member.display_name}'s inventory is currently empty.")
+                return
+
+            embed = discord.Embed(
+                title=f"🎒 {member.display_name}'s Inventory",
+                color=discord.Color.blue(),
+                description="A list of all items currently held by the user."
+            )
+
+            inventory_list = []
+            for item_data in items:
+                item_id = item_data['item_id']
+                quantity = item_data['quantity']
+                
+                # Get item details from config
+                item_details = self.config.get("items", {}).get(item_id)
+                if item_details:
+                    name = item_details.get("name", item_id)
+                    inventory_list.append(f"{name} ×{quantity}")
+                else:
+                    inventory_list.append(f"Unknown Item ({item_id}) ×{quantity}")
+
+            embed.add_field(name="Items", value="\n".join(inventory_list), inline=False)
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            await ctx.send(f"❌ An error occurred while retrieving the inventory: {e}")
+
+    def _get_weighted_reward_tier(self):
+        """Returns a reward tier based on configured probabilities."""
+        probs = self.config.get("daily_rewards", {}).get("probabilities", {})
+        if not probs:
+            return "common"
+        
+        # Create a list of tiers based on weights
+        tiers = []
+        for tier, weight in probs.items():
+            tiers.extend([tier] * weight)
+        
+        return random.choice(tiers)
+
+    @commands.command(name="daily")
+    async def daily(self, ctx):
+        """Claim your daily reward and maintain your streak!"""
+        if not self._check_db():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+
+        try:
+            user_data, starter_granted = await self._ensure_starter_bonus(ctx)
+            last_daily = user_data.get("last_daily")
+            now = datetime.now(timezone.utc)
+
+            # Check if already claimed today
+            if last_daily:
+                # If last_daily is a datetime object (from asyncpg)
+                if last_daily.date() == now.date():
+                    await ctx.send("❌ You've already claimed your daily reward today! Come back tomorrow.")
+                    return
+
+                # Check for streak reset (more than 24h + 12h grace period)
+                # If last claim was more than 48 hours ago, reset streak
+                diff = now - last_daily
+                if diff.days >= 2:
+                    await db.update_balances(
+                        self.bot.db_pool,
+                        ctx.author.id,
+                        ctx.guild.id,
+                        wallet_change=0,
+                        bank_change=0,
+                        tx_type="STREAK_RESET",
+                        tx_desc="Daily streak reset due to inactivity"
+                    )
+                    # We need a way to reset the streak in DB. 
+                    # I'll add a helper or use a direct update.
+                    async with self.bot.db_pool.acquire() as conn:
+                        await conn.execute(
+                            "UPDATE public.economy_users SET daily_streak = 0 WHERE user_id = $1 AND guild_id = $2",
+                            str(ctx.author.id), str(ctx.guild.id)
+                        )
+                    user_data['daily_streak'] = 0
+
+            # Determine reward tier
+            tier = self._get_weighted_reward_tier()
+            tier_cfg = self.config.get("daily_rewards", {}).get("rewards", {}).get(tier, {})
+            
+            coins = random.randint(tier_cfg.get("coins_min", 50), tier_cfg.get("coins_max", 200))
+            xp = random.randint(tier_cfg.get("xp_min", 10), tier_cfg.get("xp_max", 30))
+            
+            # Handle items
+            possible_items = tier_cfg.get("items", [])
+            rewarded_item = None
+            if possible_items:
+                rewarded_item = random.choice(possible_items)
+
+            # Update streak
+            streak_increment = 1
+            # (Optional: add bonus for milestones like 7 days)
+            
+            # Update DB
+            await db.claim_daily(
+                self.bot.db_pool,
+                ctx.author.id,
+                ctx.guild.id,
+                coins,
+                xp,
+                streak_increment
+            )
+            
+            # Update XP separately using existing function
+            await db.update_xp(self.bot.db_pool, ctx.author.id, ctx.guild.id, xp)
+            
+            # Add item if rewarded
+            if rewarded_item:
+                await db.add_item_to_inventory(self.bot.db_pool, ctx.author.id, ctx.guild.id, rewarded_item)
+
+            # Build response
+            item_name = self.config.get("items", {}).get(rewarded_item, {}).get("name", "Unknown Item") if rewarded_item else None
+            
+            embed = discord.Embed(
+                title="🎁 Daily Crate Opened!",
+                description=f"Congratulations {ctx.author.mention}, you've claimed your daily reward!",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="💰 Coins", value=f"`{coins:,}`", inline=True)
+            embed.add_field(name="✨ XP", value=f"`{xp}`", inline=True)
+            
+            if item_name:
+                embed.add_field(name="📦 Item", value=f"{item_name}", inline=False)
+            
+            new_streak = user_data['daily_streak'] + 1
+            embed.set_footer(text=f"🔥 Daily Streak: {new_streak} days")
+            
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            await ctx.send(f"❌ An error occurred while claiming your daily reward: {e}")
 
     @commands.Cog.listener()
     async def on_message(self, message):
