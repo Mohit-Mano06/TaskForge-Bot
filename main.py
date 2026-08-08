@@ -13,6 +13,7 @@ from discord.ext import commands
 from mistralai.client import Mistral
 
 import database
+import asyncpg
 from logger import send_log
 from bot_logger import log_print, RICH_ENABLED, rich_terminal
 from cogs.admin.config import OWNER_ID, DEV_GUILD_ID
@@ -73,6 +74,10 @@ class TaskForgeBot(commands.Bot):
         except Exception as e:
             log_print(f"Error sending shutdown log: {e}", "error")
 
+        if hasattr(self, 'db_pool') and self.db_pool:
+            log_print("Closing database pool...")
+            await self.db_pool.close()
+
         await super().close()
 
 bot = TaskForgeBot()
@@ -123,6 +128,19 @@ async def on_ready():
 
 @bot.event
 async def setup_hook():
+    # Initialize database pool
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        try:
+            bot.db_pool = await asyncpg.create_pool(dsn=db_url)
+            log_print("✅ Connected to PostgreSQL database pool", "success")
+        except Exception as e:
+            log_print(f"❌ Failed to connect to PostgreSQL database: {e}", "error")
+            bot.db_pool = None
+    else:
+        log_print("⚠️ DATABASE_URL not found in environment. Economy commands will be disabled.", "warning")
+        bot.db_pool = None
+
     # Load maintenance state
     try:
         maintenance_state = await database.load_maintenance()
@@ -141,7 +159,8 @@ async def setup_hook():
         "cogs.social.confession", "cogs.general.announcement", "cogs.general.guide",
         "cogs.music.dj", "cogs.ai.assistant", "cogs.ai.insights", "cogs.system", "cogs.general.status",
         "cogs.leaderboard.leaderboard_tracker",
-        "cogs.leaderboard.leaderboard_commands"
+        "cogs.leaderboard.leaderboard_commands",
+        "cogs.economy.economy_cog"
     ]
     
     if RICH_ENABLED:
