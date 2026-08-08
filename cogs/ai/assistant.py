@@ -3,6 +3,7 @@ import os
 import re
 from discord.ext import commands
 from mistralai.client import Mistral
+from cogs.admin.config import OWNER_ID, DEV_GUILD_ID
 
 class AIChat(commands.Cog):
     def __init__(self, bot, mistral_client):
@@ -182,6 +183,15 @@ class AIChat(commands.Cog):
         # Skip if it's a command
         if message.content.startswith("$"):
             return
+
+        # Intercept if maintenance mode is enabled
+        if getattr(self.bot, 'maintenance_enabled', False):
+            is_owner = (message.author.id == OWNER_ID) or await self.bot.is_owner(message.author)
+            is_dev_server = message.guild and message.guild.id == DEV_GUILD_ID
+            if not is_owner and not is_dev_server:
+                maint_msg = getattr(self.bot, 'maintenance_message', "TaskForge is currently undergoing testing/maintenance.")
+                await message.reply(f"🛠️ **{maint_msg}**\nSome features may be temporarily unavailable. Please try again later.")
+                return
 
         user_id = message.author.id
         content = message.content.replace(f"<@{self.bot.user.id}>", "").strip()

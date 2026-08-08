@@ -15,6 +15,11 @@ from mistralai.client import Mistral
 import database
 from logger import send_log
 from bot_logger import log_print, RICH_ENABLED, rich_terminal
+from cogs.admin.config import OWNER_ID, DEV_GUILD_ID
+
+class MaintenanceModeActive(commands.CheckFailure):
+    def __init__(self, message=None):
+        super().__init__(message or "TaskForge is currently undergoing testing/maintenance.")
 
 # Load environment variables
 try:
@@ -111,11 +116,28 @@ async def on_ready():
         except Exception as e:
             log_print(f"❌ Supabase error: {e}", "error")
 
+    # Set maintenance presence if enabled
+    if getattr(bot, 'maintenance_enabled', False):
+        await bot.change_presence(activity=discord.Game(name="🛠️ Testing TaskForge"))
+        log_print("Applied maintenance presence.")
+
 @bot.event
 async def setup_hook():
+    # Load maintenance state
+    try:
+        maintenance_state = await database.load_maintenance()
+        bot.maintenance_enabled = maintenance_state.get("enabled", False)
+        bot.maintenance_message = maintenance_state.get("message", "TaskForge is currently undergoing testing/maintenance.")
+        log_print(f"Loaded maintenance state: enabled={bot.maintenance_enabled}")
+    except Exception as e:
+        log_print(f"Error loading maintenance state in setup_hook: {e}", "error")
+        bot.maintenance_enabled = False
+        bot.maintenance_message = "TaskForge is currently undergoing testing/maintenance."
+
     extensions = [
         "cogs.utility.tools", "cogs.general.help", "cogs.general.info", "cogs.utility.reminder",
         "cogs.utility.vcreminder", "cogs.music.player", "cogs.admin.moderation",
+        "cogs.admin.maintenance",
         "cogs.social.confession", "cogs.general.announcement", "cogs.general.guide",
         "cogs.music.dj", "cogs.ai.assistant", "cogs.ai.insights", "cogs.system", "cogs.general.status",
         "cogs.leaderboard.leaderboard_tracker",
@@ -136,8 +158,24 @@ async def setup_hook():
 
 
 
+@bot.check
+async def check_maintenance(ctx):
+    if getattr(ctx.bot, 'maintenance_enabled', False):
+        is_owner = (ctx.author.id == OWNER_ID) or await ctx.bot.is_owner(ctx.author)
+        if is_owner:
+            return True
+        if ctx.guild and ctx.guild.id == DEV_GUILD_ID:
+            return True
+        raise MaintenanceModeActive(getattr(ctx.bot, 'maintenance_message', None))
+    return True
+
 @bot.event
 async def on_command_error(ctx, error):
+    original = getattr(error, "original", error)
+    if isinstance(original, MaintenanceModeActive):
+        msg = str(original)
+        await ctx.send(f"🛠️ **{msg}**\nSome features may be temporarily unavailable. Please try again later.")
+        return
     if isinstance(error, commands.CommandNotFound):
         return
     if isinstance(error, commands.CheckFailure):

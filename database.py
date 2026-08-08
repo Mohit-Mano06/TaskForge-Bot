@@ -14,6 +14,7 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
 REMINDER_FILE = "data/reminder.json"
 VERSIONS_FILE = "data/versions.json"
+MAINTENANCE_FILE = "data/maintenance.json"
 
 
 async def supabase_request(method, endpoint, data=None, extra_headers=None):
@@ -345,3 +346,42 @@ async def bulk_update_leaderboard_stats(guild_id: str, user_stats: dict, channel
             await update_channel_stat(guild_id, channel_id, count)
             
     return True
+
+
+# ==========================================
+# MAINTENANCE STATE
+# ==========================================
+
+async def load_maintenance() -> dict:
+    """Async loads maintenance state from Supabase or JSON"""
+    default_state = {"enabled": False, "message": "TaskForge is currently undergoing testing/maintenance."}
+    if USE_SUPABASE:
+        res = await supabase_request("GET", "bot_data?key=eq.maintenance&select=value")
+        if res and len(res) > 0:
+            return res[0].get("value", default_state)
+        return default_state
+    
+    # JSON Fallback
+    if not os.path.exists(MAINTENANCE_FILE):
+        return default_state
+    
+    try:
+        async with aiofiles.open(MAINTENANCE_FILE, "r") as f:
+            content = await f.read()
+            if not content.strip():
+                return default_state
+            return json.loads(content)
+    except Exception as e:
+        print(f"Error loading maintenance state: {e}")
+        return default_state
+
+async def save_maintenance(state: dict):
+    """Async saves maintenance state to Supabase or JSON"""
+    if USE_SUPABASE:
+        payload = {"key": "maintenance", "value": state}
+        await supabase_request("POST", "bot_data", data=payload, extra_headers={"Prefer": "resolution=merge-duplicates"})
+    
+    # Always keep JSON updated as a backup!
+    os.makedirs(os.path.dirname(MAINTENANCE_FILE), exist_ok=True)
+    async with aiofiles.open(MAINTENANCE_FILE, "w") as f:
+        await f.write(json.dumps(state, indent=4))

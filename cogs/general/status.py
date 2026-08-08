@@ -25,8 +25,11 @@ class Status(commands.Cog):
         ]
 
         while not self.bot.is_closed():
-            status = random.choice(statuses)
-            await self.bot.change_presence(activity=discord.Game(name=status))
+            if getattr(self.bot, 'maintenance_enabled', False):
+                await self.bot.change_presence(activity=discord.Game(name="🛠️ Testing TaskForge"))
+            else:
+                status = random.choice(statuses)
+                await self.bot.change_presence(activity=discord.Game(name=status))
             await asyncio.sleep(30)
 
 async def setup(bot):
