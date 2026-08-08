@@ -28,7 +28,7 @@ class Economy(commands.Cog):
         """Helper to ensure db_pool is initialized."""
         return hasattr(self.bot, 'db_pool') and self.bot.db_pool is not None
 
-    @commands.command(name="balance", aliases=["bal", "profile"])
+    @commands.command(name="balance", aliases=["bal"])
     async def balance(self, ctx, member: discord.Member = None):
         """Displays the wallet, bank balance, level, and XP of a user."""
         if not self._check_db():
