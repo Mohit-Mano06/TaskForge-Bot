@@ -6,6 +6,7 @@ python-dotenv
 mistralai
 psutil
 aiofiles
+asyncpg
 
 #PyNaCl
 rich
