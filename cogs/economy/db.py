@@ -98,6 +98,69 @@ async def update_balances(
 
             return dict(updated_row)
 
+async def grant_starter_bonus(
+    pool: asyncpg.Pool,
+    user_id: str,
+    guild_id: str,
+    amount: int
+) -> tuple[dict, bool]:
+    """Grants a one-time starter wallet bonus if the user has not claimed it."""
+    user_id = str(user_id)
+    guild_id = str(guild_id)
+
+    if amount <= 0:
+        user_data = await get_or_create_user(pool, user_id, guild_id)
+        return user_data, False
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT * FROM public.economy_users WHERE user_id = $1 AND guild_id = $2 FOR UPDATE",
+                user_id, guild_id
+            )
+            if not row:
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO public.economy_users (user_id, guild_id, wallet, bank, xp, level, daily_streak, last_daily)
+                    VALUES ($1, $2, 0, 0, 0, 1, 0, NULL)
+                    ON CONFLICT (user_id, guild_id) DO UPDATE SET updated_at = NOW()
+                    RETURNING *
+                    """,
+                    user_id, guild_id
+                )
+
+            already_granted = await conn.fetchval(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM public.economy_transactions
+                    WHERE user_id = $1 AND guild_id = $2 AND type = 'STARTER_BONUS'
+                )
+                """,
+                user_id, guild_id
+            )
+            if already_granted:
+                return dict(row), False
+
+            updated_row = await conn.fetchrow(
+                """
+                UPDATE public.economy_users
+                SET wallet = wallet + $3, updated_at = NOW()
+                WHERE user_id = $1 AND guild_id = $2
+                RETURNING *
+                """,
+                user_id, guild_id, amount
+            )
+            await conn.execute(
+                """
+                INSERT INTO public.economy_transactions (user_id, guild_id, amount, type, description)
+                VALUES ($1, $2, $3, 'STARTER_BONUS', $4)
+                """,
+                user_id, guild_id, amount, "One-time starter bonus for first economy command"
+            )
+
+            return dict(updated_row), True
+
 async def update_xp(
     pool: asyncpg.Pool,
     user_id: str,

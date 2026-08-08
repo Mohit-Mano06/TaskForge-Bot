@@ -21,12 +21,26 @@ class Economy(commands.Cog):
             print(f"Error loading economy_config.json: {e}")
             return {
                 "text_activity": {"cooldown_seconds": 60, "min_length": 5, "reward_min": 2, "reward_max": 5, "xp_min": 1, "xp_max": 3},
-                "vc_activity": {"interval_minutes": 10, "reward_per_interval": 5, "xp_per_interval": 2}
+                "vc_activity": {"interval_minutes": 10, "reward_per_interval": 5, "xp_per_interval": 2},
+                "starter_bonus": {"enabled": True, "wallet": 100}
             }
 
     def _check_db(self):
         """Helper to ensure db_pool is initialized."""
         return hasattr(self.bot, 'db_pool') and self.bot.db_pool is not None
+
+    async def _ensure_starter_bonus(self, ctx):
+        cfg = self.config.get("starter_bonus", {})
+        if not cfg.get("enabled", True):
+            return await db.get_or_create_user(self.bot.db_pool, ctx.author.id, ctx.guild.id), False
+
+        amount = int(cfg.get("wallet", 100))
+        return await db.grant_starter_bonus(
+            self.bot.db_pool,
+            ctx.author.id,
+            ctx.guild.id,
+            amount
+        )
 
     @commands.command(name="balance", aliases=["bal"])
     async def balance(self, ctx, member: discord.Member = None):
@@ -41,7 +55,11 @@ class Economy(commands.Cog):
             return
 
         try:
-            user_data = await db.get_or_create_user(self.bot.db_pool, member.id, ctx.guild.id)
+            starter_granted = False
+            if member.id == ctx.author.id:
+                user_data, starter_granted = await self._ensure_starter_bonus(ctx)
+            else:
+                user_data = await db.get_or_create_user(self.bot.db_pool, member.id, ctx.guild.id)
             
             embed = discord.Embed(
                 title=f"💰 {member.display_name}'s Economy Profile",
@@ -56,6 +74,9 @@ class Economy(commands.Cog):
             
             streak_text = f"🔥 Streak: {user_data['daily_streak']} days" if user_data['daily_streak'] > 0 else "💨 No active streak"
             embed.set_footer(text=streak_text)
+            if starter_granted:
+                amount = self.config.get("starter_bonus", {}).get("wallet", 100)
+                embed.add_field(name="Starter Bonus", value=f"`{amount:,}` coins added to your wallet", inline=False)
             
             await ctx.send(embed=embed)
         except Exception as e:
@@ -69,7 +90,7 @@ class Economy(commands.Cog):
             return
 
         try:
-            user_data = await db.get_or_create_user(self.bot.db_pool, ctx.author.id, ctx.guild.id)
+            user_data, starter_granted = await self._ensure_starter_bonus(ctx)
             wallet = user_data["wallet"]
 
             if wallet <= 0:
@@ -116,10 +137,14 @@ class Economy(commands.Cog):
             return
 
         try:
-            user_data = await db.get_or_create_user(self.bot.db_pool, ctx.author.id, ctx.guild.id)
+            user_data, starter_granted = await self._ensure_starter_bonus(ctx)
             bank = user_data["bank"]
 
             if bank <= 0:
+                if starter_granted:
+                    bonus = self.config.get("starter_bonus", {}).get("wallet", 100)
+                    await ctx.send(f"Starter bonus received: `{bonus:,}` coins in your wallet.\nYou don't have any coins in your bank to withdraw.")
+                    return
                 await ctx.send("❌ You don't have any coins in your bank to withdraw.")
                 return
 
