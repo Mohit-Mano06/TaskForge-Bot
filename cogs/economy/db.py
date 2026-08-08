@@ -298,3 +298,13 @@ async def get_inventory(pool: asyncpg.Pool, user_id: str, guild_id: str) -> list
             user_id, guild_id
         )
         return [dict(row) for row in rows]
+
+async def reset_economy_data(pool: asyncpg.Pool):
+    """Wipes all economy data from the database. Use with extreme caution."""
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # Order matters due to foreign keys
+            await conn.execute("DELETE FROM public.economy_user_achievements")
+            await conn.execute("DELETE FROM public.economy_inventory")
+            await conn.execute("DELETE FROM public.economy_transactions")
+            await conn.execute("DELETE FROM public.economy_users")

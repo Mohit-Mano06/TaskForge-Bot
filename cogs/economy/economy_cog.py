@@ -226,6 +226,38 @@ class Economy(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ An error occurred while retrieving the inventory: {e}")
 
+    @commands.command(name="reset economy", aliases=["wipe economy"])
+    async def reset_economy(self, ctx):
+        """Wipes all economy data for everyone. Admin only."""
+        if not ctx.author.guild_permissions.administrator:
+            await ctx.send("❌ You need Administrator permissions to use this command.")
+            return
+
+        if not self._check_db():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+
+        # Guardrail: Confirmation step
+        confirm_embed = discord.Embed(
+            title="⚠️ WARNING: ECONOMY RESET",
+            description="This will **PERMANENTLY DELETE** all wallet balances, bank accounts, inventories, and transaction logs for **EVERYONE** in the database.\n\nThis action cannot be undone.",
+            color=discord.Color.red()
+        )
+        confirm_embed.set_footer(text="Type `$confirm_reset` to proceed.")
+        await ctx.send(embed=confirm_embed)
+
+        def check(m):
+            return m.author == ctx.author and m.content == "$confirm_reset"
+
+        try:
+            # Wait for confirmation message
+            await self.bot.wait_for("message", check=check, timeout=30.0)
+            
+            await db.reset_economy_data(self.bot.db_pool)
+            await ctx.send("✅ Economy has been successfully reset. Everyone is starting from scratch!")
+        except Exception:
+            await ctx.send("❌ Reset cancelled or timed out. No data was deleted.")
+
     def _get_weighted_reward_tier(self):
         """Returns a reward tier based on configured probabilities."""
         probs = self.config.get("daily_rewards", {}).get("probabilities", {})
