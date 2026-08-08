@@ -226,9 +226,13 @@ class Economy(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ An error occurred while retrieving the inventory: {e}")
 
-    @commands.command(name="reset economy", aliases=["wipe economy"])
-    async def reset_economy(self, ctx):
+    @commands.command(name="reset_economy", aliases=["reset"])
+    async def reset_economy(self, ctx, target: str = None):
         """Wipes all economy data for everyone. Admin only."""
+        if target and target.lower() != "economy":
+            await ctx.send("❌ Invalid reset target. Did you mean `$reset economy`?")
+            return
+
         if not ctx.author.guild_permissions.administrator:
             await ctx.send("❌ You need Administrator permissions to use this command.")
             return
