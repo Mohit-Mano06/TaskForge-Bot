@@ -97,3 +97,55 @@ async def update_balances(
             )
 
             return dict(updated_row)
+
+async def update_xp(
+    pool: asyncpg.Pool,
+    user_id: str,
+    guild_id: str,
+    xp_change: int
+) -> dict:
+    """Updates the user's XP and handles level ups."""
+    user_id = str(user_id)
+    guild_id = str(guild_id)
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT xp, level FROM public.economy_users WHERE user_id = $1 AND guild_id = $2 FOR UPDATE",
+                user_id, guild_id
+            )
+            if not row:
+                await conn.execute(
+                    "INSERT INTO public.economy_users (user_id, guild_id, wallet, bank, xp, level) VALUES ($1, $2, 0, 0, 0, 1)",
+                    user_id, guild_id
+                )
+                current_xp = 0
+                current_level = 1
+            else:
+                current_xp = row['xp']
+                current_level = row['level']
+
+            new_xp = current_xp + xp_change
+            new_level = current_level
+
+            # Simple leveling formula: requires level * 100 XP to reach next level
+            # e.g., Level 1 -> Level 2 requires 100 XP
+            # Level 2 -> Level 3 requires 200 XP
+            while True:
+                required_xp = new_level * 100
+                if new_xp >= required_xp:
+                    new_xp -= required_xp
+                    new_level += 1
+                else:
+                    break
+
+            updated_row = await conn.fetchrow(
+                """
+                UPDATE public.economy_users
+                SET xp = $3, level = $4, updated_at = NOW()
+                WHERE user_id = $1 AND guild_id = $2
+                RETURNING *
+                """,
+                user_id, guild_id, new_xp, new_level
+            )
+            return dict(updated_row)

@@ -1,16 +1,34 @@
 import discord
 from discord.ext import commands
 from cogs.economy import db
+import json
+import os
+import time
+import random
 
 class Economy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.config = self._load_config()
+        self.text_cooldowns = {}
+        self.vc_sessions = {}
+
+    def _load_config(self):
+        try:
+            with open("data/economy_config.json", "r") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading economy_config.json: {e}")
+            return {
+                "text_activity": {"cooldown_seconds": 60, "min_length": 5, "reward_min": 2, "reward_max": 5, "xp_min": 1, "xp_max": 3},
+                "vc_activity": {"interval_minutes": 10, "reward_per_interval": 5, "xp_per_interval": 2}
+            }
 
     def _check_db(self):
         """Helper to ensure db_pool is initialized."""
         return hasattr(self.bot, 'db_pool') and self.bot.db_pool is not None
 
-    @commands.command(name="balance", aliases=["bal"])
+    @commands.command(name="balance", aliases=["bal", "profile"])
     async def balance(self, ctx, member: discord.Member = None):
         """Displays the wallet, bank balance, level, and XP of a user."""
         if not self._check_db():
@@ -136,6 +154,115 @@ class Economy(commands.Cog):
             await ctx.send(f"✅ Withdrew 🪙 `{with_amount:,}` coins from your bank!")
         except Exception as e:
             await ctx.send(f"❌ An error occurred during the transaction: {e}")
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if message.author.bot or not message.guild:
+            return
+            
+        if not self._check_db():
+            return
+            
+        cfg = self.config.get("text_activity", {})
+        if len(message.content) < cfg.get("min_length", 5):
+            return
+            
+        user_id = str(message.author.id)
+        now = time.time()
+        
+        # Cooldown check
+        last_time = self.text_cooldowns.get(user_id, 0)
+        if now - last_time < cfg.get("cooldown_seconds", 60):
+            return
+            
+        self.text_cooldowns[user_id] = now
+        
+        # Calculate rewards
+        coin_reward = random.randint(cfg.get("reward_min", 2), cfg.get("reward_max", 5))
+        xp_reward = random.randint(cfg.get("xp_min", 1), cfg.get("xp_max", 3))
+        
+        try:
+            await db.get_or_create_user(self.bot.db_pool, message.author.id, message.guild.id)
+            await db.update_balances(
+                self.bot.db_pool, 
+                message.author.id, 
+                message.guild.id, 
+                coin_reward, 0, 
+                "TEXT_ACTIVITY", "Earned from text activity"
+            )
+            await db.update_xp(
+                self.bot.db_pool,
+                message.author.id,
+                message.guild.id,
+                xp_reward
+            )
+        except Exception as e:
+            print(f"Error rewarding text activity: {e}")
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        if member.bot or not member.guild:
+            return
+            
+        if not self._check_db():
+            return
+            
+        guild_id = str(member.guild.id)
+        
+        # Handle before channel (someone leaving or switching)
+        if before.channel is not None and before.channel != after.channel:
+            humans_before = [m for m in before.channel.members if not m.bot]
+            if len(humans_before) < 2:
+                # If less than 2 humans remain, end sessions for everyone who was tracking
+                await self._end_vc_session(guild_id, member)
+                for remaining_member in humans_before:
+                    await self._end_vc_session(guild_id, remaining_member)
+            else:
+                # Still enough people, just end the session for the leaving member
+                await self._end_vc_session(guild_id, member)
+                
+        # Handle after channel (someone joining or switching)
+        if after.channel is not None and after.channel != before.channel:
+            humans_after = [m for m in after.channel.members if not m.bot]
+            if len(humans_after) >= 2:
+                # Ensure all humans in the channel have a session started
+                for m in humans_after:
+                    session_key = (guild_id, str(m.id))
+                    if session_key not in self.vc_sessions:
+                        self.vc_sessions[session_key] = time.time()
+
+    async def _end_vc_session(self, guild_id, member):
+        session_key = (str(guild_id), str(member.id))
+        if session_key in self.vc_sessions:
+            join_time = self.vc_sessions.pop(session_key)
+            duration_minutes = (time.time() - join_time) / 60.0
+            
+            cfg = self.config.get("vc_activity", {})
+            interval = cfg.get("interval_minutes", 10)
+            intervals_completed = int(duration_minutes // interval)
+            
+            if intervals_completed > 0:
+                coin_reward = intervals_completed * cfg.get("reward_per_interval", 5)
+                xp_reward = intervals_completed * cfg.get("xp_per_interval", 2)
+                
+                try:
+                    await db.get_or_create_user(self.bot.db_pool, member.id, member.guild.id)
+                    await db.update_balances(
+                        self.bot.db_pool, 
+                        member.id, 
+                        member.guild.id, 
+                        coin_reward, 0, 
+                        "VC_ACTIVITY", f"Earned from VC activity ({duration_minutes:.1f} mins)"
+                    )
+                    await db.update_xp(
+                        self.bot.db_pool,
+                        member.id,
+                        member.guild.id,
+                        xp_reward
+                    )
+                except Exception as e:
+                    print(f"Error rewarding VC activity: {e}")
+
 
 async def setup(bot):
     await bot.add_cog(Economy(bot))
