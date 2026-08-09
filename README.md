@@ -30,6 +30,7 @@
 ### ⚡ Smart Productivity & Server Control
 
 - **Dynamic Reminders**: Set personal or voice-channel wide alerts (`$reminder`, `$vcreminder`) with flexible time formats.
+- **Passive Economy Rewards**: Earn coins and XP automatically through chat activity and voice participation.
 - **Advanced Moderation**: A full suite of tools (purge, kick, ban, warn, lock) with cross-server audit logging.
 - **System Monitoring**: Keep an eye on bot performance with real-time tracking of RAM, CPU, and Uptime via `$stats`.
 
@@ -52,42 +53,69 @@ All commands use the `$` prefix.
 
 - `$chat <message>`: Chat with TaskForge AI Assistant (with long-term memory).
 - `$talk <message>`: Get a witty, sassy, or funny AI reply (short & sassy).
+- `$roast [target or message]`: Roast someone or yourself with a savage AI reply.
 - `$resetchat`: Clear your AI conversation history.
 - `$explain <level> <topic>`: AI explains a topic. Levels: `1`, `5`, `10`, `engineer`.
-- `$obsessions`: Analyzes recent chat history to find trending server topics.
-- `$talktamabot`: Start a multi-turn AI conversation with Tamabot.
-- `$roasttamabot`: Challenge Tamabot to a savage AI roast battle.
+- `$obsessions`: Analyze recent chat history to find trending server topics.
 - `$hello`: Get a witty, AI-generated greeting.
+- `$reloadidentity`: Reload bot identity from `data/identity.md` (Admin only).
+
+> Note: Mention or reply to TaskForge in chat to trigger the AI assistant outside of commands.
 
 ### 🎧 Music & AI DJ
 
-- `$dj <request>`: TaskForge AI generates and queues a playlist based on your prompt.
-- `$play <search/url>`: Play a song from YouTube or add to queue.
-- `$pause` / `$resume`: Control the current track.
-- `$skip`: Skip to the next track.
+- `$dj <request>`: TaskForge AI generates and queues a themed playlist based on your prompt.
+- `$play <search/url>`: Play a song from YouTube or add it to the queue.
+- `$pause` / `$resume`: Control playback.
+- `$skip`: Skip the current track.
 - `$queue`: View the upcoming tracklist.
-- `$clear` / `$stop`: Manage or stop the music session.
+- `$clear` / `$stop`: Clear the queue and stop playback.
+
+### 💰 Economy
+
+- `$balance [member]` (alias: `$bal`): View wallet, bank, level, and XP.
+- `$deposit <amount>` (alias: `$dep`): Deposit coins into your bank.
+- `$withdraw <amount>` (alias: `$with`): Withdraw coins from your bank.
+- `$inventory [member]` (alias: `$inv`): View a user's inventory.
+- `$shop [item_id]`: Browse available shop items or view a specific item.
+- `$buy <item_id> [quantity]`: Purchase items from the shop.
+- `$sell <item_id> [quantity]`: Sell items from your inventory.
+- `$daily`: Claim your daily reward and streak bonuses.
+- `$reset_economy economy` (Admin only): Reset the economy database.
+
+> Economy rewards are also earned passively by sending messages and spending time in voice channels.
 
 ### 🛡️ Moderation (Admin Only)
 
 - `$purge <amount>`: Fast message cleanup (max 100).
-- `$warn <member> [reason]`: Issue a formal warning (logged in `warnings.json`).
-- `$kick` / `$ban <member> [reason]`: Securely manage server members.
-- `$lock` / `$unlock`: Instantly toggle channel sending permissions.
+- `$kick <member> [reason]`: Kick a member.
+- `$ban <member> [reason]`: Ban a member.
+- `$warn <member> [reason]`: Warn a member and log the warning.
+- `$lock`: Lock the current channel.
+- `$unlock`: Unlock the current channel.
+- `$maintenance on [message]`: Enable maintenance mode with an optional notice.
+- `$maintenance off`: Disable maintenance mode.
+- `$maintenance status`: Show current maintenance mode status.
+
+### 📣 Announcements
+
+- `$announce <version> <type> <message>`: Create and post an announcement in the configured announcement channel (Owner only).
+- `$latest`: Display the latest saved release announcement.
 
 ### ⏰ Reminders & Productivity
 
 - `$reminder <time> <message>`: Personal reminder (e.g., `$reminder 30m Take a break`).
 - `$vcreminder <time> <message>`: Alert everyone in your current voice channel.
-- `$vcmembers`: Quickly list all active members in your Voice Channel.
+- `$vcmembers`: List members in your current voice channel.
 
 ### 🛠️ Utilities & Voice
 
 - `$ping`: Check API & WebSocket latency with humorous diagnostics.
 - `$stats`: View technical environment stats (RAM, CPU, Uptime).
 - `$roll`: Roll a standard 6-sided dice.
-- `$vcstat`: Detailed voice connection quality and stats.
-- `$connect` / `$disconnect`: Manage the bot's voice presence.
+- `$vcstat`: Show connection and voice channel stats.
+- `$setupguide`: Display setup instructions and environment tips.
+- `$help`: Show available commands and usage information.
 
 ### 📊 Activity Leaderboards
 
@@ -95,11 +123,11 @@ All commands use the `$` prefix.
 - `$leaderboard vc`: See who has spent the most time in voice channels.
 - `$leaderboard commands` (alias: `$lb cmds`): Track the most active bot command users.
 - `$leaderboard channels`: Rank your server's channels by total message volume.
-- `$leaderboard sync [limit]`: (Admin Only) Scrape message history to populate stats. Use `0` for full history.
+- `$leaderboard sync [limit]`: (Admin only) Scrape message history to populate stats. Use `0` for full history.
 
 ### 📩 Social & Fun
 
-- `$confess <message>`: Send an anonymous message to the designated confession channel.
+- `$confession <message>` (alias: `$confess`): Send an anonymous confession to the designated confession channel.
 
 ### ℹ️ Information
 
@@ -107,7 +135,6 @@ All commands use the `$` prefix.
 - `$me` (aliases: `profile`, `whoami`): Your detailed Discord profile with role listing and timestamps.
 - `$server` (aliases: `serverinfo`, `guild`): Full server statistics, including member counts and channel breakdowns.
 - `$credits` (aliases: `dev`, `whomadeyou`): Recognition of the bot's developers and project links.
-- `$setupguide`: Detailed deployment instructions for developers.
 
 ---
 
@@ -122,10 +149,13 @@ All commands use the `$` prefix.
 2. **Install dependencies**:
 
    TaskForge-Bot uses `uv` for lightning-fast dependency management.
+
    ```bash
    uv sync
    ```
-   *Alternatively, if you don't have `uv`:*
+
+   _Alternatively, if you don't have `uv`:_
+
    ```bash
    pip install -r requirements.txt
    ```
@@ -154,4 +184,4 @@ All commands use the `$` prefix.
 
 ---
 
-*Developed with ❤️ by [Mohit](https://github.com/Mohit-Mano06)*
+_Developed with ❤️ by [Mohit](https://github.com/Mohit-Mano06)_
