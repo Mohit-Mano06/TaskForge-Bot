@@ -135,5 +135,17 @@
       "sell_price": 0,
       "daily_only": true
     }
+  },
+  "shop": {
+    "currency_symbol": "🪙",
+    "default_order": [
+      "apple",
+      "cookie",
+      "energy_drink",
+      "lucky_coin",
+      "lucky_clover",
+      "treasure_map"
+    ],
+    "show_daily_only": false
   }
 }

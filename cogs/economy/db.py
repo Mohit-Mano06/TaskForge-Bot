@@ -287,6 +287,38 @@ async def add_item_to_inventory(
             user_id, guild_id, item_id, quantity
         )
 
+async def remove_item_from_inventory(
+    pool: asyncpg.Pool,
+    user_id: str,
+    guild_id: str,
+    item_id: str,
+    quantity: int = 1
+):
+    """Removes an item quantity from the user's inventory."""
+    user_id = str(user_id)
+    guild_id = str(guild_id)
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT quantity FROM public.economy_inventory WHERE user_id = $1 AND guild_id = $2 AND item_id = $3 FOR UPDATE",
+                user_id, guild_id, item_id
+            )
+            if not row or row['quantity'] < quantity:
+                raise ValueError("Insufficient item quantity to sell.")
+
+            new_quantity = row['quantity'] - quantity
+            if new_quantity <= 0:
+                await conn.execute(
+                    "DELETE FROM public.economy_inventory WHERE user_id = $1 AND guild_id = $2 AND item_id = $3",
+                    user_id, guild_id, item_id
+                )
+            else:
+                await conn.execute(
+                    "UPDATE public.economy_inventory SET quantity = $3 WHERE user_id = $1 AND guild_id = $2 AND item_id = $4",
+                    user_id, guild_id, new_quantity, item_id
+                )
+
 async def get_inventory(pool: asyncpg.Pool, user_id: str, guild_id: str) -> list:
     """Retrieves all items and their quantities for a user."""
     user_id = str(user_id)

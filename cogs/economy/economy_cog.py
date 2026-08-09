@@ -6,7 +6,6 @@ import os
 import time
 import random
 from datetime import datetime, timezone
-import time
 
 class Economy(commands.Cog):
     def __init__(self, bot):
@@ -226,8 +225,164 @@ class Economy(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ An error occurred while retrieving the inventory: {e}")
 
+    def _normalize_item_id(self, item_text: str) -> str:
+        return item_text.strip().lower().replace(" ", "_")
+
+    def _get_item(self, item_id: str):
+        return self.config.get("items", {}).get(item_id)
+
+    def _get_currency_symbol(self) -> str:
+        return self.config.get("shop", {}).get("currency_symbol", "🪙")
+
+    @commands.command(name="shop")
+    async def shop(self, ctx, item_id: str | None = None):
+        """Displays the shop or details for a specific item."""
+        if not self._check_db():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+
+        shop_config = self.config.get("shop", {})
+        currency = shop_config.get("currency_symbol", "🪙")
+        show_daily_only = shop_config.get("show_daily_only", False)
+        item_order = shop_config.get("default_order", list(self.config.get("items", {}).keys()))
+
+        if item_id:
+            normalized_id = self._normalize_item_id(item_id)
+            item = self._get_item(normalized_id)
+            if not item or (item.get("daily_only", False) and not show_daily_only):
+                await ctx.send("❌ That item is not available in the shop.")
+                return
+
+            embed = discord.Embed(
+                title=f"🛒 {item.get('name', normalized_id)}",
+                description=item.get("description", "No description available."),
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="Rarity", value=item.get("rarity", "Unknown"), inline=True)
+            embed.add_field(name="Buy Price", value=f"{currency} `{item.get('buy_price', 0):,}`", inline=True)
+            embed.add_field(name="Sell Price", value=f"{currency} `{item.get('sell_price', 0):,}`", inline=True)
+            embed.add_field(name="Daily Only", value="Yes" if item.get("daily_only", False) else "No", inline=True)
+            await ctx.send(embed=embed)
+            return
+
+        lines = []
+        for item_key in item_order:
+            item = self._get_item(item_key)
+            if not item:
+                continue
+            if item.get("daily_only", False) and not show_daily_only:
+                continue
+
+            if item.get("buy_price", 0) <= 0:
+                continue
+
+            lines.append(f"**{item.get('name')}** — {currency} {item.get('buy_price', 0):,} \u2022 {item.get('description', '')}")
+
+        if not lines:
+            await ctx.send("❌ No shop items are configured or available.")
+            return
+
+        embed = discord.Embed(
+            title="🛒 TaskForge Shop",
+            description="Use `$buy <item_id> <quantity>` to purchase and `$sell <item_id> <quantity>` to sell items.",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="Available Items", value="\n".join(lines), inline=False)
+        await ctx.send(embed=embed)
+
+    @commands.command(name="buy")
+    async def buy(self, ctx, item_id: str, quantity: int = 1):
+        """Purchase shop items using wallet coins."""
+        if not self._check_db():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+
+        if quantity <= 0:
+            await ctx.send("❌ Quantity must be at least 1.")
+            return
+
+        item_key = self._normalize_item_id(item_id)
+        item = self._get_item(item_key)
+        if not item or item.get("daily_only", False):
+            await ctx.send("❌ That item is not available for purchase.")
+            return
+
+        price = int(item.get("buy_price", 0))
+        if price <= 0:
+            await ctx.send("❌ This item cannot be purchased.")
+            return
+
+        total_cost = price * quantity
+        currency = self._get_currency_symbol()
+        user_data, _ = await self._ensure_starter_bonus(ctx)
+        if user_data["wallet"] < total_cost:
+            await ctx.send(f"❌ You need {currency} `{total_cost:,}` but only have {currency} `{user_data['wallet']:,}`.")
+            return
+
+        try:
+            await db.update_balances(
+                self.bot.db_pool,
+                ctx.author.id,
+                ctx.guild.id,
+                wallet_change=-total_cost,
+                bank_change=0,
+                tx_type="SHOP_PURCHASE",
+                tx_desc=f"Bought {quantity}x {item.get('name')}"
+            )
+            await db.add_item_to_inventory(self.bot.db_pool, ctx.author.id, ctx.guild.id, item_key, quantity)
+            await ctx.send(f"✅ Purchased {quantity}x {item.get('name')} for {currency} `{total_cost:,}`.")
+        except Exception as e:
+            await ctx.send(f"❌ Failed to complete purchase: {e}")
+
+    @commands.command(name="sell")
+    async def sell(self, ctx, item_id: str, quantity: int = 1):
+        """Sell an item from your inventory for coins."""
+        if not self._check_db():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+
+        if quantity <= 0:
+            await ctx.send("❌ Quantity must be at least 1.")
+            return
+
+        item_key = self._normalize_item_id(item_id)
+        item = self._get_item(item_key)
+        if not item:
+            await ctx.send("❌ That item does not exist.")
+            return
+
+        sell_price = int(item.get("sell_price", 0))
+        if sell_price <= 0:
+            await ctx.send("❌ This item cannot be sold.")
+            return
+
+        inventory = await db.get_inventory(self.bot.db_pool, str(ctx.author.id), ctx.guild.id)
+        owned = next((entry for entry in inventory if entry["item_id"] == item_key), None)
+        if not owned or owned["quantity"] < quantity:
+            await ctx.send(f"❌ You don't have enough of {item.get('name')} to sell.")
+            return
+
+        total_gain = sell_price * quantity
+        currency = self._get_currency_symbol()
+        try:
+            await db.remove_item_from_inventory(self.bot.db_pool, ctx.author.id, ctx.guild.id, item_key, quantity)
+            await db.update_balances(
+                self.bot.db_pool,
+                ctx.author.id,
+                ctx.guild.id,
+                wallet_change=total_gain,
+                bank_change=0,
+                tx_type="ITEM_SALE",
+                tx_desc=f"Sold {quantity}x {item.get('name')}"
+            )
+            await ctx.send(f"✅ Sold {quantity}x {item.get('name')} for {currency} `{total_gain:,}`.")
+        except ValueError as e:
+            await ctx.send(f"❌ {e}")
+        except Exception as e:
+            await ctx.send(f"❌ Failed to complete sale: {e}")
+
     @commands.command(name="reset_economy", aliases=["reset"])
-    async def reset_economy(self, ctx, target: str = None):
+    async def reset_economy(self, ctx, target: str | None = None):
         """Wipes all economy data for everyone. Admin only."""
         if target and target.lower() != "economy":
             await ctx.send("❌ Invalid reset target. Did you mean `$reset economy`?")
