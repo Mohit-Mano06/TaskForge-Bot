@@ -169,14 +169,18 @@ class AIChat(commands.Cog):
         if message.author.bot:
             return
 
+        # Ignore ALL interactions (pings and replies) if they happen inside the announcement channel
+        from cogs.admin.config import ANNOUNCEMENT_CHANNEL_ID
+        if message.channel.id == ANNOUNCEMENT_CHANNEL_ID:
+            return
+
         is_ping = self.bot.user in message.mentions
         is_reply_to_bot = False
         
         if message.reference and message.reference.resolved:
             if message.reference.resolved.author == self.bot.user:
-                # Ignore replies to messages sent in the announcement channel
-                from cogs.admin.config import ANNOUNCEMENT_CHANNEL_ID
-                if message.channel.id == ANNOUNCEMENT_CHANNEL_ID:
+                # Ignore replies to messages that were originally sent in the announcement channel
+                if message.reference.resolved.channel.id == ANNOUNCEMENT_CHANNEL_ID:
                     is_reply_to_bot = False
                 else:
                     is_reply_to_bot = True
