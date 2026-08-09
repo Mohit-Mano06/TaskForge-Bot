@@ -174,7 +174,12 @@ class AIChat(commands.Cog):
         
         if message.reference and message.reference.resolved:
             if message.reference.resolved.author == self.bot.user:
-                is_reply_to_bot = True
+                # Ignore replies to messages sent in the announcement channel
+                from cogs.admin.config import ANNOUNCEMENT_CHANNEL_ID
+                if message.channel.id == ANNOUNCEMENT_CHANNEL_ID:
+                    is_reply_to_bot = False
+                else:
+                    is_reply_to_bot = True
 
         # Only proceed if pinged or replying to bot
         if not (is_ping or is_reply_to_bot):
