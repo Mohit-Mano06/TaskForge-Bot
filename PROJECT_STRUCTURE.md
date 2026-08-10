@@ -4,15 +4,15 @@ This document outlines the folder structure and the purpose of each file in the 
 
 ## 📌 Root Directory
 
-| File / Folder | Description |
-| -------------- | ------------- |
-| `main.py` | Entry point. Handles startup, extension loading, and global error handling. |
-| `.env` | **Secret**. Contains `TOKEN` and `MISTRAL_TOKEN`. Do not commit! |
-| `config_example.py` | Template for environment variable setup. |
-| `requirements.txt` | Python library dependencies. |
-| `README.md` | Setup instructions and feature overview. |
-| `logger.py` | Specialized logging utility for moderation events. |
-| `start.bat` | Windows batch script to launch the bot. |
+| File / Folder       | Description                                                                 |
+| ------------------- | --------------------------------------------------------------------------- |
+| `main.py`           | Entry point. Handles startup, extension loading, and global error handling. |
+| `.env`              | **Secret**. Contains `TOKEN` and `MISTRAL_TOKEN`. Do not commit!            |
+| `config_example.py` | Template for environment variable setup.                                    |
+| `requirements.txt`  | Python library dependencies.                                                |
+| `README.md`         | Setup instructions and feature overview.                                    |
+| `logger.py`         | Specialized logging utility for moderation events.                          |
+| `start.bat`         | Windows batch script to launch the bot.                                     |
 
 ---
 
@@ -60,7 +60,6 @@ Core information and utility commands.
 Productivity and helpful tools.
 
 - `reminder.py`: User-facing personal reminders (`$reminder`).
-- `vcreminder.py`: Voice channel-wide timed alerts (`$vcreminder`).
 - `tools.py`: General utilities (ping, roll, voice stats).
 
 ### 📁 `cogs/social/`

@@ -86,7 +86,6 @@ class Help(commands.Cog):
             "MusicPlayer": "Music",
             "Utility": "Utility",
             "Reminder": "Utility",
-            "VCReminder": "Utility",
             "AIChat": "AI Assistant",
             "Insights": "AI Assistant",
             "AIDJ": "Music",

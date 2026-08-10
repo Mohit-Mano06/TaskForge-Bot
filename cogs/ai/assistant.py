@@ -51,7 +51,7 @@ class AIChat(commands.Cog):
         return {"role": "system", "content": content}
 
     # Chat command
-    @commands.command(name="chat", aliases=["talk"], help="Chat with TaskForge AI assistant")
+    @commands.command(name="chat", aliases=["talk", "ask"], help="Chat with TaskForge AI assistant")
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def chat(self, ctx, *, message: str):
         """Chat with AI"""

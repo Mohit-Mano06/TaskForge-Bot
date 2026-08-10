@@ -29,7 +29,7 @@
 
 ### ⚡ Smart Productivity & Server Control
 
-- **Dynamic Reminders**: Set personal or voice-channel wide alerts (`$reminder`, `$vcreminder`) with flexible time formats.
+- **Dynamic Reminders**: Set personal alerts with flexible time formats.
 - **Passive Economy Rewards**: Earn coins and XP automatically through chat activity and voice participation.
 - **Advanced Moderation**: A full suite of tools (purge, kick, ban, warn, lock) with cross-server audit logging.
 - **System Monitoring**: Keep an eye on bot performance with real-time tracking of RAM, CPU, and Uptime via `$stats`.
@@ -105,7 +105,6 @@ All commands use the `$` prefix.
 ### ⏰ Reminders & Productivity
 
 - `$reminder <time> <message>`: Personal reminder (e.g., `$reminder 30m Take a break`).
-- `$vcreminder <time> <message>`: Alert everyone in your current voice channel.
 - `$vcmembers`: List members in your current voice channel.
 
 ### 🛠️ Utilities & Voice
