@@ -234,6 +234,12 @@ class Economy(commands.Cog):
     def _get_currency_symbol(self) -> str:
         return self.config.get("shop", {}).get("currency_symbol", "🪙")
 
+    def _format_shop_price(self, price_value, currency: str) -> str:
+        price = int(price_value or 0)
+        if price <= 0:
+            return "Unavailable"
+        return f"{currency} {price:,}"
+
     @commands.command(name="shop")
     async def shop(self, ctx, item_id: str | None = None):
         """Displays the shop or details for a specific item."""
@@ -259,8 +265,8 @@ class Economy(commands.Cog):
                 color=discord.Color.blue()
             )
             embed.add_field(name="Rarity", value=item.get("rarity", "Unknown"), inline=True)
-            embed.add_field(name="Buy Price", value=f"{currency} `{item.get('buy_price', 0):,}`", inline=True)
-            embed.add_field(name="Sell Price", value=f"{currency} `{item.get('sell_price', 0):,}`", inline=True)
+            embed.add_field(name="Buy Price", value=self._format_shop_price(item.get("buy_price", 0), currency), inline=True)
+            embed.add_field(name="Sell Price", value=self._format_shop_price(item.get("sell_price", 0), currency), inline=True)
             embed.add_field(name="Daily Only", value="Yes" if item.get("daily_only", False) else "No", inline=True)
             await ctx.send(embed=embed)
             return
@@ -273,10 +279,11 @@ class Economy(commands.Cog):
             if item.get("daily_only", False) and not show_daily_only:
                 continue
 
-            if item.get("buy_price", 0) <= 0:
-                continue
-
-            lines.append(f"**{item.get('name')}** — {currency} {item.get('buy_price', 0):,} \u2022 {item.get('description', '')}")
+            buy_price = int(item.get("buy_price", 0) or 0)
+            if buy_price <= 0:
+                lines.append(f"**{item.get('name')}** — Unavailable • {item.get('description', '')}")
+            else:
+                lines.append(f"**{item.get('name')}** — {currency} {buy_price:,} • {item.get('description', '')}")
 
         if not lines:
             await ctx.send("❌ No shop items are configured or available.")
