@@ -229,9 +229,11 @@ class Economy(commands.Cog):
         return item_text.strip().lower().replace(" ", "_")
 
     def _get_item(self, item_id: str):
+        self.config = self._load_config()
         return self.config.get("items", {}).get(item_id)
 
     def _get_currency_symbol(self) -> str:
+        self.config = self._load_config()
         return self.config.get("shop", {}).get("currency_symbol", "🪙")
 
     def _format_shop_price(self, price_value, currency: str) -> str:
@@ -308,6 +310,7 @@ class Economy(commands.Cog):
             await ctx.send("❌ Quantity must be at least 1.")
             return
 
+        self.config = self._load_config()
         item_key = self._normalize_item_id(item_id)
         item = self._get_item(item_key)
         if not item or item.get("daily_only", False):
@@ -352,6 +355,7 @@ class Economy(commands.Cog):
             await ctx.send("❌ Quantity must be at least 1.")
             return
 
+        self.config = self._load_config()
         item_key = self._normalize_item_id(item_id)
         item = self._get_item(item_key)
         if not item:
