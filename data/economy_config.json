@@ -77,7 +77,8 @@
       "rarity": "Common",
       "buy_price": 100,
       "sell_price": 40,
-      "daily_only": false
+      "daily_only": false,
+      "aliases": ["energy", "energy drink"]
     },
     "lucky_coin": {
       "name": "🪙 Lucky Coin",

@@ -228,6 +228,24 @@ class Economy(commands.Cog):
     def _normalize_item_id(self, item_text: str) -> str:
         return item_text.strip().lower().replace(" ", "_")
 
+    def _resolve_item_id(self, item_text: str) -> str:
+        self.config = self._load_config()
+        requested = self._normalize_item_id(item_text)
+
+        if self._get_item(requested):
+            return requested
+
+        for item_id, item in self.config.get("items", {}).items():
+            aliases = item.get("aliases", [])
+            if not aliases:
+                continue
+
+            normalized_aliases = [self._normalize_item_id(alias) for alias in aliases]
+            if requested in normalized_aliases:
+                return item_id
+
+        return requested
+
     def _get_item(self, item_id: str):
         self.config = self._load_config()
         return self.config.get("items", {}).get(item_id)
@@ -255,7 +273,7 @@ class Economy(commands.Cog):
         item_order = shop_config.get("default_order", list(self.config.get("items", {}).keys()))
 
         if item_id:
-            normalized_id = self._normalize_item_id(item_id)
+            normalized_id = self._resolve_item_id(item_id)
             item = self._get_item(normalized_id)
             if not item or (item.get("daily_only", False) and not show_daily_only):
                 await ctx.send("❌ That item is not available in the shop.")
@@ -311,7 +329,7 @@ class Economy(commands.Cog):
             return
 
         self.config = self._load_config()
-        item_key = self._normalize_item_id(item_id)
+        item_key = self._resolve_item_id(item_id)
         item = self._get_item(item_key)
         if not item or item.get("daily_only", False):
             await ctx.send("❌ That item is not available for purchase.")
@@ -356,7 +374,7 @@ class Economy(commands.Cog):
             return
 
         self.config = self._load_config()
-        item_key = self._normalize_item_id(item_id)
+        item_key = self._resolve_item_id(item_id)
         item = self._get_item(item_key)
         if not item:
             await ctx.send("❌ That item does not exist.")
