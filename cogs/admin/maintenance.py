@@ -1,11 +1,13 @@
 import discord
 from discord.ext import commands
 import database
-from cogs.admin.config import OWNER_ID
+from cogs.admin.config import OWNER_IDS, user_is_owner
 
 def is_owner_or_dev():
     async def predicate(ctx):
-        if ctx.author.id == OWNER_ID:
+        if user_is_owner(ctx.author):
+            return True
+        if ctx.author.id in OWNER_IDS:
             return True
         return await ctx.bot.is_owner(ctx.author)
     return commands.check(predicate)

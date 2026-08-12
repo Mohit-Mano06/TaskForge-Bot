@@ -16,7 +16,7 @@ import database
 import asyncpg
 from logger import send_log
 from bot_logger import log_print, RICH_ENABLED, rich_terminal
-from cogs.admin.config import OWNER_ID, DEV_GUILD_ID
+from cogs.admin.config import OWNER_IDS, DEV_GUILD_ID
 
 class MaintenanceModeActive(commands.CheckFailure):
     def __init__(self, message=None):
@@ -181,7 +181,7 @@ async def setup_hook():
 @bot.check
 async def check_maintenance(ctx):
     if getattr(ctx.bot, 'maintenance_enabled', False):
-        is_owner = (ctx.author.id == OWNER_ID) or await ctx.bot.is_owner(ctx.author)
+        is_owner = (ctx.author.id in OWNER_IDS) or await ctx.bot.is_owner(ctx.author)
         if is_owner:
             return True
         if ctx.guild and ctx.guild.id == DEV_GUILD_ID:

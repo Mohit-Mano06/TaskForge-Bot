@@ -9,6 +9,7 @@ import discord
 from discord.ext import commands
 
 from cogs.economy import db
+from cogs.admin.config import OWNER_IDS, user_has_admin_access
 
 # IST timezone is used in all giveaway timing displays and scheduling.
 IST = ZoneInfo("Asia/Kolkata")
@@ -38,9 +39,9 @@ GIVEAWAY_BONUS_ITEM_POOL = [
 ]
 GIVEAWAY_REACTION = "🎉"
 
-# Only these users may start or reset giveaways.
-# Replace this ID with your actual Discord user ID if needed.
-GIVEAWAY_ALLOWED_STARTER_IDS = {450626076079554573}
+# Only configured owners or authorized admin-role members may manage giveaways.
+# Keep this list centrally in cogs/admin/config.py.
+GIVEAWAY_ALLOWED_STARTER_IDS = set(OWNER_IDS)
 
 # For testing, keep this as a placeholder so it does not spam everyone.
 # Later, replace it with "@everyone" or your own mention if you want a wider ping.
@@ -343,7 +344,9 @@ class GiveawayCog(commands.Cog):
         )
 
     def _can_manage_giveaway(self, user):
-        return user.id in GIVEAWAY_ALLOWED_STARTER_IDS or user == self.bot.user
+        if user is None:
+            return False
+        return user.id in GIVEAWAY_ALLOWED_STARTER_IDS or user_has_admin_access(user)
 
     @giveaway.command(name="start")
     async def giveaway_start(self, ctx):

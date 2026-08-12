@@ -6,12 +6,10 @@ from datetime import datetime, timezone
 import json
 import os
 from .logging import send_log
-
-ALLOWED_ROLE_IDS = [1471835077787783270, 1470002009812766751]
+from cogs.admin.config import ADMIN_ROLE_IDS, OWNER_IDS, user_has_admin_access
 
 async def is_bot_admin_check(ctx):
-    # Check if any of the user's roles match the allowed admin roles
-    return any(role.id in ALLOWED_ROLE_IDS for role in ctx.author.roles)
+    return user_has_admin_access(ctx.author)
 
 is_bot_admin = commands.check(is_bot_admin_check)
 
