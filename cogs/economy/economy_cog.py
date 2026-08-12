@@ -33,15 +33,26 @@ class Economy(commands.Cog):
     async def _ensure_starter_bonus(self, ctx):
         cfg = self.config.get("starter_bonus", {})
         if not cfg.get("enabled", True):
-            return await db.get_or_create_user(self.bot.db_pool, ctx.author.id, ctx.guild.id), False
+            user_data = await db.get_or_create_user(self.bot.db_pool, ctx.author.id, ctx.guild.id)
+            await self._credit_pending_giveaway_reward(ctx.guild, ctx.author)
+            return user_data, False
 
         amount = int(cfg.get("wallet", 100))
-        return await db.grant_starter_bonus(
+        user_data, granted = await db.grant_starter_bonus(
             self.bot.db_pool,
             ctx.author.id,
             ctx.guild.id,
             amount
         )
+        await self._credit_pending_giveaway_reward(ctx.guild, ctx.author)
+        return user_data, granted
+
+    async def _credit_pending_giveaway_reward(self, guild, member):
+        giveaway_cog = self.bot.get_cog("GiveawayCog")
+        if giveaway_cog is None:
+            return
+
+        await giveaway_cog._credit_pending_reward_if_possible(str(guild.id), str(member.id))
 
     @commands.command(name="balance", aliases=["bal"])
     async def balance(self, ctx, member: discord.Member | None = None):

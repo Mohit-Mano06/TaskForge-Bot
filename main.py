@@ -160,7 +160,8 @@ async def setup_hook():
         "cogs.music.dj", "cogs.ai.assistant", "cogs.ai.insights", "cogs.system", "cogs.general.status",
         "cogs.leaderboard.leaderboard_tracker",
         "cogs.leaderboard.leaderboard_commands",
-        "cogs.economy.economy_cog"
+        "cogs.economy.economy_cog",
+        "cogs.economy.giveaway"
     ]
     
     if RICH_ENABLED:
