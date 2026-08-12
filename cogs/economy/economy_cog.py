@@ -1,4 +1,3 @@
-import asyncio
 import discord
 from discord.ext import commands
 from cogs.economy import db
@@ -277,6 +276,11 @@ class Economy(commands.Cog):
             else:
                 lines.append(f"**{name}** — {currency} {buy_price:,} • {item.get('description', '')}")
 
+        page_nav = " | ".join(
+            f"[{idx}]" if idx == valid_page else str(idx)
+            for idx in range(1, total_pages + 1)
+        )
+
         embed = discord.Embed(
             title="🛒 TaskForge Shop",
             description="Use `$buy <item_id> <quantity>` to purchase and `$sell <item_id> <quantity>` to sell items.\nSearch: `$shop search relic`   Page: `$shop page 2`",
@@ -286,56 +290,12 @@ class Economy(commands.Cog):
             lines = ["No items available on this page."]
 
         embed.add_field(name=f"Available Items • Page {valid_page}/{total_pages}", value="\n".join(lines), inline=False)
+        embed.add_field(name="Page navigator", value=page_nav, inline=False)
         if query:
-            embed.set_footer(text=f"Search results for: {query} | React to browse pages")
+            embed.set_footer(text=f"Search results for: {query} | Use $shop page <number>")
         else:
-            embed.set_footer(text="Use $shop page 2 or $shop search relic to browse more items. | React to browse pages")
+            embed.set_footer(text="Use $shop page <number>, $shop next, or $shop prev")
         return embed
-
-    async def _run_shop_paginator(self, ctx, message, catalog, query=None, currency="🪙", start_page=1, page_size=6):
-        total_pages = max(1, (len(catalog) + page_size - 1) // page_size)
-        current_page = max(1, min(int(start_page), total_pages))
-        reactions = ("⏮️", "⬅️", "➡️", "⏭️", "🛑")
-
-        for emoji in reactions:
-            await message.add_reaction(emoji)
-
-        while True:
-            try:
-                reaction, user = await self.bot.wait_for(
-                    "reaction_add",
-                    check=lambda r, u: r.message.id == message.id and u.id == ctx.author.id and str(r.emoji) in reactions,
-                    timeout=180
-                )
-            except asyncio.TimeoutError:
-                try:
-                    await message.clear_reactions()
-                except Exception:
-                    pass
-                return
-
-            emoji = str(reaction.emoji)
-
-            if emoji == "⏮️":
-                current_page = 1
-            elif emoji == "⬅️":
-                current_page = max(1, current_page - 1)
-            elif emoji == "➡️":
-                current_page = min(total_pages, current_page + 1)
-            elif emoji == "⏭️":
-                current_page = total_pages
-            elif emoji == "🛑":
-                try:
-                    await message.clear_reactions()
-                except Exception:
-                    pass
-                return
-
-            await message.edit(embed=self._build_shop_page_embed(catalog, current_page, query=query, currency=currency, page_size=page_size))
-            try:
-                await message.remove_reaction(reaction.emoji, user)
-            except Exception:
-                pass
 
     def _get_shop_catalog(self):
         self.config = self._load_config()
@@ -408,6 +368,22 @@ class Economy(commands.Cog):
                 return
             catalog = self._get_shop_catalog()
             query = None
+        elif args[0].lower() in ["next", "n"]:
+            page = 2
+            catalog = self._get_shop_catalog()
+            query = None
+        elif args[0].lower() in ["prev", "previous", "back", "b"]:
+            page = 1
+            catalog = self._get_shop_catalog()
+            query = None
+        elif args[0].lower() in ["first", "start"]:
+            page = 1
+            catalog = self._get_shop_catalog()
+            query = None
+        elif args[0].lower() in ["last"]:
+            catalog = self._get_shop_catalog()
+            page = max(1, len(catalog) // page_size + (1 if len(catalog) % page_size else 0))
+            query = None
         elif args[0].isdigit():
             page = int(args[0])
             catalog = self._get_shop_catalog()
@@ -445,10 +421,7 @@ class Economy(commands.Cog):
         total_pages = max(1, (len(catalog) + page_size - 1) // page_size)
         page = max(1, min(page, total_pages))
         embed = self._build_shop_page_embed(catalog, page, query=query, currency=currency, page_size=page_size)
-        message = await ctx.send(embed=embed)
-
-        if total_pages > 1:
-            await self._run_shop_paginator(ctx, message, catalog, query=query, currency=currency, start_page=page, page_size=page_size)
+        await ctx.send(embed=embed)
 
     @commands.command(name="buy")
     async def buy(self, ctx, item_id: str, quantity: int = 1):
