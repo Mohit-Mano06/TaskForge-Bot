@@ -38,11 +38,12 @@ GIVEAWAY_BONUS_ITEM_POOL = [
 ]
 GIVEAWAY_REACTION = "🎉"
 
+# Only these users may start or reset giveaways.
+# Replace this ID with your actual Discord user ID if needed.
+GIVEAWAY_ALLOWED_STARTER_IDS = {450626076079554573}
+
 # For testing, keep this as a placeholder so it does not spam everyone.
 # Later, replace it with "@everyone" or your own mention if you want a wider ping.
-# ======================= MY USER ID =======================
-# 450626076079554573 
-
 GIVEAWAY_PING_TEXT = "<@450626076079554573>"
 
 DATA_PATH = os.path.join("data", "giveaway_entries.json")
@@ -168,37 +169,17 @@ class GiveawayCog(commands.Cog):
             )
             return row is not None
 
-    async def _generate_winner_message(self, winner_name, prize_amount, item_bonus, profile_missing):
-        if not getattr(self.bot, "mistral_client", None):
-            return None
-
-        profile_line = (
-            "Their rewards have already been credited to their inventory and economy wallet."
-            if not profile_missing
-            else "Their profile was missing, so they should use `$balance` or create their profile next, and then their rewards will be added to their account."
-        )
-
-        prompt = (
-            f"Write a short, exciting Discord winner announcement for {winner_name}. "
-            f"The person has won a giveaway with `{prize_amount:,}` coins. "
-            f"Prize details: {item_bonus if item_bonus else 'No bonus item'} . "
-            f"Tone: celebratory, friendly, hype, and concise. "
-            f"Also include: {profile_line} "
-            "Keep it under 180 words and sound like a real human Discord announcement."
-        )
-
-        try:
-            response = await self.bot.mistral_client.chat.complete_async(
-                model="open-mistral-7b",
-                messages=[{"role": "user", "content": prompt}],
-            )
-            text = response.choices[0].message.content.strip()
-            return text if text else None
-        except Exception:
-            return None
-
     async def _send_giveaway_message(self, guild, channel, message_text):
         return await channel.send(message_text)
+
+    def _get_channel_for_giveaway(self, guild, guild_id):
+        state = self._guild_state(guild_id)
+        channel_id = state.get("channel_id")
+        if channel_id:
+            channel = guild.get_channel(int(channel_id))
+            if channel is not None:
+                return channel
+        return guild.system_channel or next((ch for ch in guild.text_channels if ch.permissions_for(guild.me).send_messages), None)
 
     async def _close_giveaway(self, guild_id):
         guild = self.bot.get_guild(int(guild_id))
@@ -218,9 +199,7 @@ class GiveawayCog(commands.Cog):
 
         if not entries:
             self._save_state()
-            channel = guild.get_channel(int(state.get("channel_id") or 0)) if state.get("channel_id") else None
-            if channel is None:
-                channel = guild.system_channel
+            channel = self._get_channel_for_giveaway(guild, guild_id)
             if channel:
                 await channel.send("🎁 Giveaway closed with no entries. No winner was selected.")
             return
@@ -245,13 +224,6 @@ class GiveawayCog(commands.Cog):
                 "item_bonus": item_bonus,
             }
             self._save_state()
-            channel = guild.system_channel or next((ch for ch in guild.text_channels if ch.permissions_for(guild.me).send_messages), None)
-            if channel:
-                await channel.send(
-                    f"🎉 Giveaway closed! Winner: {winner_member.mention}\n"
-                    f"Prize: `{prize_amount:,}` coins{f' + bonus item: `{item_bonus}`' if item_bonus else ''}\n"
-                    "The winner needs to create their economy profile first using `$balance` or another economy command, and then the reward will be credited."
-                )
             try:
                 if hasattr(winner_member, "send"):
                     await winner_member.send(
@@ -263,13 +235,7 @@ class GiveawayCog(commands.Cog):
             success = await self._grant_giveaway_reward(guild, winner_id, prize_amount, item_bonus)
             self._save_state()
             if success:
-                channel = guild.system_channel or next((ch for ch in guild.text_channels if ch.permissions_for(guild.me).send_messages), None)
-                if channel:
-                    await channel.send(
-                        f"🎉 Giveaway closed! Winner: {winner_member.mention}\n"
-                        f"Prize: `{prize_amount:,}` coins{f' + bonus item: `{item_bonus}`' if item_bonus else ''}\n"
-                        f"The winner has been credited to their economy account."
-                    )
+                state["pending_reward"] = None
 
         self._schedule_winner_announcement(guild_id)
 
@@ -289,7 +255,7 @@ class GiveawayCog(commands.Cog):
 
         winner_id = state["last_winner"]
         winner_member = guild.get_member(int(winner_id)) or await self.bot.fetch_user(int(winner_id))
-        channel = guild.system_channel or next((ch for ch in guild.text_channels if ch.permissions_for(guild.me).send_messages), None)
+        channel = self._get_channel_for_giveaway(guild, guild_id)
         if channel:
             pending = state.get("pending_reward")
             if pending and str(pending.get("user_id")) == str(winner_id):
@@ -300,26 +266,18 @@ class GiveawayCog(commands.Cog):
             if item_bonus is None and state.get("last_prize", 0) <= GIVEAWAY_LOW_PRIZE_THRESHOLD:
                 item_bonus = random.choice(GIVEAWAY_BONUS_ITEM_POOL)
 
-            ai_message = await self._generate_winner_message(
-                winner_member.display_name if hasattr(winner_member, "display_name") else str(winner_member),
-                state.get("last_prize", 0),
-                item_bonus,
-                profile_missing,
-            )
-
-            fallback_message = (
+            final_message = (
                 f"🎊 {winner_member.mention} has won the weekly giveaway! "
                 f"Prize: `{state['last_prize']:,}` coins"
             )
             if item_bonus:
-                fallback_message += f" + `{item_bonus}` item bonus."
+                final_message += f" + `{item_bonus}` item bonus."
 
             if profile_missing:
-                fallback_message += "\nYour profile was missing, so please create your economy profile using `$balance` or another economy command and then your rewards will be credited."
+                final_message += "\nYour profile was missing, so please create your economy profile using `$balance` or another economy command and then your rewards will be credited."
             else:
-                fallback_message += "\nYour rewards have already been credited to your profile."
+                final_message += "\nYour rewards have already been credited to your profile."
 
-            final_message = ai_message or fallback_message
             await channel.send(final_message)
 
     def _schedule_giveaway_tasks(self, guild_id, starts_at, closes_at):
@@ -384,9 +342,15 @@ class GiveawayCog(commands.Cog):
             "`$giveaway reset` — clear the current giveaway state\n"
         )
 
+    def _can_manage_giveaway(self, user):
+        return user.id in GIVEAWAY_ALLOWED_STARTER_IDS or user == self.bot.user
+
     @giveaway.command(name="start")
-    @commands.has_permissions(administrator=True)
     async def giveaway_start(self, ctx):
+        if not self._can_manage_giveaway(ctx.author):
+            await ctx.send("🚫 Only the giveaway owner can start a giveaway.")
+            return
+
         guild_id = str(ctx.guild.id)
         state = self._guild_state(guild_id)
         if state.get("active"):
@@ -454,8 +418,11 @@ class GiveawayCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @giveaway.command(name="reset")
-    @commands.has_permissions(administrator=True)
     async def giveaway_reset(self, ctx):
+        if not self._can_manage_giveaway(ctx.author):
+            await ctx.send("🚫 Only the giveaway owner can reset a giveaway.")
+            return
+
         state = self._guild_state(str(ctx.guild.id))
         state["active"] = False
         state["entries"] = []
