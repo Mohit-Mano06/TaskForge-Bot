@@ -1,18 +1,17 @@
 # TaskForge-Bot 🤖 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**TaskForge** is a high-performance, AI-integrated Discord bot built with `discord.py`. It transforms your server into a productive and entertaining hub with advanced AI assistants, high-fidelity music streaming, and smart automation.
+**TaskForge** is a high-performance, AI-powered Discord bot built with `discord.py`. It blends smart automation, server management, leaderboard tracking, music, and a rich economy system into one cohesive bot experience.
 
 ---
 
 ## 🌟 Key Features
 
-### 🧠 TaskForge AI Ecosystem (Powered by Mistral AI)
+### 🧠 AI & Assistant Experience
 
-- **Personal AI Assistant**: Engage in natural, context-aware conversations using `$chat`. TaskForge remembers your last few messages for a truly interactive experience.
-- **AI DJ**: Generate custom, high-quality playlists based on your mood, genre, or artist using `$dj`. TaskForge automatically searches and queues the tracks for you.
-- **Server Insights & "Obsessions"**: Use `$obsessions` to see what your server is currently hyped about. TaskForge analyzes recent chat trends to find trending topics.
-- **Explain Anything**: Use `$explain` to get simplified explanations of complex topics at 4 different levels (Beginner to Expert).
-- **Bot Interactions**: Experience witty AI-driven roasts and multi-turn conversations between TaskForge and other bots like Tamabot.
+- **AI Chat Assistant**: Talk to TaskForge with `$chat` using the built-in Mistral integration.
+- **AI Roast & Personality Modes**: Add fun bot interactions with `$roast` and AI-driven conversation replies.
+- **Bot Identity & Context**: Uses a stored identity profile for engaging and consistent responses.
+- **Server Intelligence**: Built to analyze activity and conversation trends for future AI-driven insights.
 
 ### 🎵 High-Fidelity Music Experience
 
@@ -20,28 +19,45 @@
 - **Intelligent Queueing**: Full support for adding, skipping, pausing, and clearing track queues.
 - **Voice Stats**: Monitor your voice connection quality in real-time with `$vcstat`.
 
-### 📊 Advanced Server Leaderboards (Powered by Supabase)
+### 📊 Server Leaderboards
 
-- **Comprehensive Tracking**: Real-time activity monitoring for messages sent, voice channel duration, and bot command usage.
-- **Channel Analytics**: Insights into which channels are the most active within your server.
-- **Persistent Data**: High-speed data persistence using Supabase, ensuring stats are never lost during bot restarts.
-- **Historical Sync**: Admin tools to scrape and import past message history into the leaderboard.
+- **Message, Voice, & Command Stats**: Track engagement across the server.
+- **Channel Analysis**: See which channels are most active.
+- **Leaderboard Commands**: Built to support quick ranking and historical syncs.
 
-### ⚡ Smart Productivity & Server Control
+### 💰 Economy System
 
-- **Dynamic Reminders**: Set personal alerts with flexible time formats.
-- **Passive Economy Rewards**: Earn coins and XP automatically through chat activity and voice participation.
-- **Advanced Moderation**: A full suite of tools (purge, kick, ban, warn, lock) with cross-server audit logging.
-- **System Monitoring**: Keep an eye on bot performance with real-time tracking of RAM, CPU, and Uptime via `$stats`.
+- **Wallet, Bank, XP, and Leveling**: Maintain user profiles and progression.
+- **Daily Rewards**: Claim streak-based rewards with `$daily`.
+- **Shop Catalog**: Browse items with paging, search, and filter support.
+- **Item Types**: Support for collectibles and cosmetics.
+- **Inventory Management**: View inventory and buy/sell game items.
+- **Passive Economy Growth**: Add coins and XP through activity-based rewards.
+
+### 🎁 Weekly Giveaway System
+
+- **Entry Flow via Reaction**: Users join by reacting with 🎉 to the giveaway message.
+- **IST Time Handling**: Timing is managed with Asia/Kolkata timezone awareness.
+- **Reminder Before Close**: A reminder is sent before the entry window ends.
+- **Winner Selection**: A random winner is chosen from the current participants.
+- **Reward Handling**: Coins and item bonuses are awarded to the winner.
+- **Profile-Aware Reward Delivery**: If a winner does not yet have an economy profile, the reward is held until they create one.
+
+### 🛡️ Moderation & Server Control
+
+- **Moderation Tools**: Purge, kick, ban, warn, lock, and unlock commands.
+- **Maintenance Mode**: Quickly switch the bot into testing/maintenance mode.
+- **Admin Access Control**: Permission checks are centralized for consistent owner/admin behavior.
 
 ---
 
 ## ℹ️ Bot Information
 
-- **Library**: `discord.py` (2.3+)
-- **Language**: Python 3.12+ (Optimized for 3.14)
-- **AI Engine**: Mistral AI (Small & Large models)
-- **Audio Engine**: FFmpeg (Local binary supported)
+- **Library**: `discord.py`
+- **Language**: Python 3.12+
+- **AI Provider**: Mistral AI
+- **Voice Engine**: FFmpeg + YouTube streaming support
+- **Database**: PostgreSQL-ready economy and leaderboard storage
 
 ---
 
@@ -49,91 +65,89 @@
 
 All commands use the `$` prefix.
 
-### 🤖 AI Assistant & Insights
+### 🤖 AI Assistant
 
-- `$chat <message>`: Chat with TaskForge AI Assistant (with long-term memory).
-- `$talk <message>`: Get a witty, sassy, or funny AI reply (short & sassy).
-- `$roast [target or message]`: Roast someone or yourself with a savage AI reply.
-- `$resetchat`: Clear your AI conversation history.
-- `$explain <level> <topic>`: AI explains a topic. Levels: `1`, `5`, `10`, `engineer`.
-- `$obsessions`: Analyze recent chat history to find trending server topics.
-- `$hello`: Get a witty, AI-generated greeting.
-- `$reloadidentity`: Reload bot identity from `data/identity.md` (Admin only).
+- `$chat <message>`: Chat with the TaskForge AI assistant.
+- `$talk <message>`: Short informal chat or quick witty response.
+- `$roast [target or message]`: Roast someone or yourself.
+- `$resetchat`: Clear your chat memory.
+- `$reloadidentity`: Reload the bot identity from `data/identity.md` (Owner/admin only).
 
-> Note: Mention or reply to TaskForge in chat to trigger the AI assistant outside of commands.
+### 🎧 Music
 
-### 🎧 Music & AI DJ
-
-- `$dj <request>`: TaskForge AI generates and queues a themed playlist based on your prompt.
-- `$play <search/url>`: Play a song from YouTube or add it to the queue.
+- `$dj <request>`: Generate and queue a themed playlist.
+- `$play <search/url>`: Play or queue a track.
 - `$pause` / `$resume`: Control playback.
-- `$skip`: Skip the current track.
-- `$queue`: View the upcoming tracklist.
-- `$clear` / `$stop`: Clear the queue and stop playback.
+- `$skip`: Move to the next track.
+- `$queue`: Show the queue.
+- `$clear` / `$stop`: Clear or stop playback.
 
 ### 💰 Economy
 
-- `$balance [member]` (alias: `$bal`): View wallet, bank, level, and XP.
-- `$deposit <amount>` (alias: `$dep`): Deposit coins into your bank.
-- `$withdraw <amount>` (alias: `$with`): Withdraw coins from your bank.
-- `$inventory [member]` (alias: `$inv`): View a user's inventory.
-- `$shop [item_id]`: Browse available shop items or view a specific item.
-- `$buy <item_id> [quantity]`: Purchase items from the shop.
-- `$sell <item_id> [quantity]`: Sell items from your inventory.
-- `$daily`: Claim your daily reward and streak bonuses.
-- `$reset_economy economy` (Admin only): Reset the economy database.
+- `$balance [member]` / `$bal`: View wallet, bank, level, and XP.
+- `$deposit <amount>` / `$dep`: Move coins from wallet to bank.
+- `$withdraw <amount>` / `$with`: Move coins from bank to wallet.
+- `$inventory [member]` / `$inv`: View a user's inventory.
+- `$shop [page|search|category]`: Browse items with pagination and search.
+- `$buy <item_id> [quantity]`: Purchase an item.
+- `$sell <item_id> [quantity]`: Sell an item.
+- `$daily`: Claim your daily reward.
+- `$reset_economy`: (Admin only) Reset economy data.
 
-> Economy rewards are also earned passively by sending messages and spending time in voice channels.
+### 🎁 Giveaway
 
-### 🛡️ Moderation (Admin Only)
+- `$giveaway start`: Start a giveaway in the current channel.
+- `$giveaway status`: View current entries and timing details.
+- `$giveaway reset`: Reset the active giveaway state.
 
-- `$purge <amount>`: Fast message cleanup (max 100).
+> The giveaway system is designed for weekly usage and uses IST timing by default for scheduling and reminders.
+
+### 🛡️ Moderation
+
+- `$purge <amount>`: Delete a number of messages.
 - `$kick <member> [reason]`: Kick a member.
 - `$ban <member> [reason]`: Ban a member.
-- `$warn <member> [reason]`: Warn a member and log the warning.
+- `$warn <member> [reason]`: Warn a member.
 - `$lock`: Lock the current channel.
 - `$unlock`: Unlock the current channel.
-- `$maintenance on [message]`: Enable maintenance mode with an optional notice.
+- `$maintenance on [message]`: Enable maintenance mode.
 - `$maintenance off`: Disable maintenance mode.
-- `$maintenance status`: Show current maintenance mode status.
+- `$maintenance status`: Show the status of maintenance mode.
 
 ### 📣 Announcements
 
-- `$announce <version> <type> <message>`: Create and post an announcement in the configured announcement channel (Owner only).
-- `$latest`: Display the latest saved release announcement.
+- `$announce <version> <type> <message>`: Publish a release or update announcement.
+- `$latest`: View the latest saved announcement.
 
-### ⏰ Reminders & Productivity
+### ⏰ Productivity & Utilities
 
-- `$reminder <time> <message>`: Personal reminder (e.g., `$reminder 30m Take a break`).
-- `$vcmembers`: List members in your current voice channel.
+- `$reminder <time> <message>`: Set a reminder.
+- `$vcmembers`: View members in the current voice channel.
+- `$ping`: Check latency.
+- `$stats`: Show system stats.
+- `$roll`: Roll a die.
+- `$vcstat`: Show voice connection information.
+- `$setupguide`: Show setup instructions.
+- `$help`: Show command help.
 
-### 🛠️ Utilities & Voice
+### 📊 Leaderboards
 
-- `$ping`: Check API & WebSocket latency with humorous diagnostics.
-- `$stats`: View technical environment stats (RAM, CPU, Uptime).
-- `$roll`: Roll a standard 6-sided dice.
-- `$vcstat`: Show connection and voice channel stats.
-- `$setupguide`: Display setup instructions and environment tips.
-- `$help`: Show available commands and usage information.
+- `$leaderboard messages` / `$lb msg`: Top message senders.
+- `$leaderboard vc`: Top voice activity users.
+- `$leaderboard commands` / `$lb cmds`: Most active command users.
+- `$leaderboard channels`: Most active channels.
+- `$leaderboard sync [limit]`: Pull in leaderboard history.
 
-### 📊 Activity Leaderboards
+### 📩 Social
 
-- `$leaderboard messages` (alias: `$lb msg`): View the top 10 most active chatters.
-- `$leaderboard vc`: See who has spent the most time in voice channels.
-- `$leaderboard commands` (alias: `$lb cmds`): Track the most active bot command users.
-- `$leaderboard channels`: Rank your server's channels by total message volume.
-- `$leaderboard sync [limit]`: (Admin only) Scrape message history to populate stats. Use `0` for full history.
-
-### 📩 Social & Fun
-
-- `$confession <message>` (alias: `$confess`): Send an anonymous confession to the designated confession channel.
+- `$confession <message>` / `$confess`: Send an anonymous confession.
 
 ### ℹ️ Information
 
-- `$about` (aliases: `bot`, `botinfo`): Comprehensive breakdown of TaskForge's mission and stats.
-- `$me` (aliases: `profile`, `whoami`): Your detailed Discord profile with role listing and timestamps.
-- `$server` (aliases: `serverinfo`, `guild`): Full server statistics, including member counts and channel breakdowns.
-- `$credits` (aliases: `dev`, `whomadeyou`): Recognition of the bot's developers and project links.
+- `$about` / `$botinfo`: Show bot info.
+- `$me` / `$profile` / `$whoami`: View user profile details.
+- `$server` / `$serverinfo` / `$guild`: Show server stats.
+- `$credits`: See project credits and contributors.
 
 ---
 
@@ -147,39 +161,45 @@ All commands use the `$` prefix.
 
 2. **Install dependencies**:
 
-   TaskForge-Bot uses `uv` for lightning-fast dependency management.
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+   Or with `uv`:
 
    ```bash
    uv sync
    ```
 
-   _Alternatively, if you don't have `uv`:_
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Configure Environment**:
-
-   Create a `.env` file in the root directory:
+3. **Create a `.env` file**:
 
    ```env
    TOKEN=your_discord_bot_token
    MISTRAL_TOKEN=your_mistral_api_key
+   DATABASE_URL=your_postgres_connection_string
    USE_SUPABASE=True
    SUPABASE_URL=your_supabase_project_url
    SUPABASE_SERVICE_ROLE_KEY=your_supabase_key
    ```
 
-4. **FFmpeg Setup**:
+4. **Set up FFmpeg**:
 
-   Ensure `ffmpeg.exe` is in your system PATH or located in `cogs/music/ffmpeg/`.
+   Ensure `ffmpeg.exe` is in your system PATH or inside the repo's `cogs/music/ffmpeg/` folder.
 
-5. **Run the Bot**:
+5. **Run the bot**:
 
    ```bash
    ./start.bat
    ```
+
+---
+
+## 🧩 Notes
+
+- The economy system uses a PostgreSQL-backed profile model.
+- Shop items are driven by `data/economy_config.json` and are easy to extend.
+- Giveaway values and timing can be edited centrally in the giveaway module.
+- Owner/admin access checks are centralized for easier maintenance.
 
 ---
 
