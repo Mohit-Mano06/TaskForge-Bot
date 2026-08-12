@@ -58,6 +58,7 @@
     "apple": {
       "name": "🍎 Apple",
       "description": "A crisp red apple.",
+      "type": "collectible",
       "rarity": "Common",
       "buy_price": 50,
       "sell_price": 20,
@@ -66,6 +67,7 @@
     "cookie": {
       "name": "🍪 Cookie",
       "description": "A delicious chocolate chip cookie.",
+      "type": "collectible",
       "rarity": "Common",
       "buy_price": 75,
       "sell_price": 30,
@@ -74,6 +76,7 @@
     "energy_drink": {
       "name": "🥤 Energy Drink",
       "description": "Tastes like battery acid, but you're awake!",
+      "type": "collectible",
       "rarity": "Common",
       "buy_price": 100,
       "sell_price": 40,
@@ -83,6 +86,7 @@
     "lucky_coin": {
       "name": "🪙 Lucky Coin",
       "description": "A coin that feels slightly warm to the touch.",
+      "type": "collectible",
       "rarity": "Uncommon",
       "buy_price": 500,
       "sell_price": 200,
@@ -91,6 +95,7 @@
     "lucky_clover": {
       "name": "🍀 Lucky Clover",
       "description": "A four-leaf clover. Luck is on your side!",
+      "type": "collectible",
       "rarity": "Rare",
       "buy_price": 2500,
       "sell_price": 1000,
@@ -99,6 +104,7 @@
     "golden_ticket": {
       "name": "🎫 Golden Ticket",
       "description": "An exclusive ticket to the TaskForge VIP lounge.",
+      "type": "collectible",
       "rarity": "Rare",
       "buy_price": 0,
       "sell_price": 0,
@@ -107,6 +113,7 @@
     "treasure_map": {
       "name": "🗺️ Treasure Map",
       "description": "A weathered map leading to... something.",
+      "type": "collectible",
       "rarity": "Rare",
       "buy_price": 2500,
       "sell_price": 1000,
@@ -115,6 +122,7 @@
     "dragon_egg": {
       "name": "🐉 Dragon Egg",
       "description": "It's pulsing with a faint heat.",
+      "type": "collectible",
       "rarity": "Legendary",
       "buy_price": 0,
       "sell_price": 0,
@@ -123,6 +131,7 @@
     "galaxy_crate": {
       "name": "🌌 Galaxy Crate",
       "description": "Contains fragments of a dying star.",
+      "type": "collectible",
       "rarity": "Legendary",
       "buy_price": 0,
       "sell_price": 0,
@@ -131,6 +140,7 @@
     "mythic_gem": {
       "name": "💎 Mythic Gem",
       "description": "A gem that glows with an otherworldly light.",
+      "type": "collectible",
       "rarity": "Legendary",
       "buy_price": 0,
       "sell_price": 0,
@@ -139,6 +149,7 @@
     "golden_coin": {
       "name": "🪙 Golden Coin",
       "description": "A shiny golden coin just for flexing.",
+      "type": "collectible",
       "rarity": "Collectible",
       "buy_price": 10000,
       "sell_price": 5000,
@@ -148,6 +159,7 @@
     "ancient_relic": {
       "name": "🏺 Ancient Relic",
       "description": "A mysterious relic from the past.",
+      "type": "collectible",
       "rarity": "Collectible",
       "buy_price": 20000,
       "sell_price": 10000,
@@ -157,6 +169,7 @@
     "diamond_trophy": {
       "name": "🏆 Diamond Trophy",
       "description": "Ultra rare flex item.",
+      "type": "collectible",
       "rarity": "Collectible",
       "buy_price": 50000,
       "sell_price": 25000,
@@ -166,6 +179,7 @@
     "limited_poster": {
       "name": "🎴 Limited Poster",
       "description": "A limited edition poster.",
+      "type": "collectible",
       "rarity": "Collectible",
       "buy_price": 8000,
       "sell_price": 4000,
@@ -175,6 +189,7 @@
     "crystal_skull": {
       "name": "💀 Crystal Skull",
       "description": "Looks cursed but valuable.",
+      "type": "collectible",
       "rarity": "Collectible",
       "buy_price": 30000,
       "sell_price": 15000,
@@ -184,6 +199,7 @@
     "cool_badge": {
       "name": "🎖️ Cool Badge",
       "description": "A cool badge that shows on your profile.",
+      "type": "cosmetic",
       "rarity": "Cosmetic",
       "buy_price": 5000,
       "sell_price": 2500,
@@ -193,6 +209,7 @@
     "vip_name_color": {
       "name": "✨ VIP Name Color",
       "description": "Changes your name color.",
+      "type": "cosmetic",
       "rarity": "Cosmetic",
       "buy_price": 12000,
       "sell_price": 6000,
@@ -202,6 +219,7 @@
     "profile_frame": {
       "name": "🖼️ Profile Frame",
       "description": "Adds a frame to your profile.",
+      "type": "cosmetic",
       "rarity": "Cosmetic",
       "buy_price": 10000,
       "sell_price": 5000,
@@ -211,6 +229,7 @@
     "glowing_aura": {
       "name": "✨ Glowing Aura",
       "description": "Gives your profile a glowing effect.",
+      "type": "cosmetic",
       "rarity": "Cosmetic",
       "buy_price": 15000,
       "sell_price": 7500,
@@ -220,6 +239,7 @@
     "shadow_theme": {
       "name": "🌑 Shadow Theme",
       "description": "Dark themed profile style.",
+      "type": "cosmetic",
       "rarity": "Cosmetic",
       "buy_price": 9000,
       "sell_price": 4500,

@@ -260,23 +260,40 @@ class Economy(commands.Cog):
             return "Unavailable"
         return f"{currency} {price:,}"
 
-    def _build_shop_page_embed(self, catalog, page, query=None, currency="🪙", page_size=6):
+    @staticmethod
+    def _normalize_shop_category(value: str | None) -> str | None:
+        if not value:
+            return None
+        normalized = value.strip().lower()
+        if normalized in ["all", "any", "everything"]:
+            return "all"
+        if normalized in ["collectible", "collectibles"]:
+            return "collectible"
+        if normalized in ["cosmetic", "cosmetics"]:
+            return "cosmetic"
+        return None
+
+    def _build_shop_page_embed(self, catalog, page, query=None, currency="🪙", page_size=6, category="all"):
         total_pages = max(1, (len(catalog) + page_size - 1) // page_size)
         valid_page = max(1, min(int(page), total_pages))
         start = (valid_page - 1) * page_size
         end = start + page_size
         visible_items = catalog[start:end]
 
-        lines = []
-        for item_key, item in visible_items:
+        cards = []
+        for index, (item_key, item) in enumerate(visible_items, start=start + 1):
+            item_name = item.get("name", item_key)
+            item_type = str(item.get("type", "collectible")).capitalize()
             buy_price = int(item.get("buy_price", 0) or 0)
-            name = item.get("name", item_key)
-            if buy_price <= 0:
-                lines.append(f"**{name}** — Unavailable • {item.get('description', '')}")
-            else:
-                lines.append(f"**{name}** — {currency} {buy_price:,} • {item.get('description', '')}")
+            price_text = "Unavailable" if buy_price <= 0 else f"{currency} {buy_price:,}"
+            description = item.get("description", "No description.")
+            cards.append(
+                f"**{index}. {item_name}**\n"
+                f"`{item_type}` • {price_text}\n"
+                f"_{description}_"
+            )
 
-        page_nav = " | ".join(
+        page_nav = " ".join(
             f"[{idx}]" if idx == valid_page else str(idx)
             for idx in range(1, total_pages + 1)
         )
@@ -286,23 +303,28 @@ class Economy(commands.Cog):
             description="Use `$buy <item_id> <quantity>` to purchase and `$sell <item_id> <quantity>` to sell items.\nSearch: `$shop search relic`   Page: `$shop page 2`",
             color=discord.Color.blue()
         )
-        if not lines:
-            lines = ["No items available on this page."]
+        if not cards:
+            cards = ["No items available on this page."]
 
-        embed.add_field(name=f"Available Items • Page {valid_page}/{total_pages}", value="\n".join(lines), inline=False)
-        embed.add_field(name="Page navigator", value=page_nav, inline=False)
+        embed.add_field(
+            name=f"Available Items • Page {valid_page}/{total_pages} • {category.title()}",
+            value="\n\n".join(cards),
+            inline=False
+        )
+        embed.add_field(name="Page Buttons", value=page_nav, inline=False)
         if query:
-            embed.set_footer(text=f"Search results for: {query} | Use $shop page <number>")
+            embed.set_footer(text=f"Search results: {query} | Use $shop page <number>")
         else:
-            embed.set_footer(text="Use $shop page <number>, $shop next, or $shop prev")
+            embed.set_footer(text="Use $shop page <number>, $shop next, $shop prev, or $shop cosmetics")
         return embed
 
-    def _get_shop_catalog(self):
+    def _get_shop_catalog(self, category: str = "all"):
         self.config = self._load_config()
         shop_config = self.config.get("shop", {})
         show_daily_only = shop_config.get("show_daily_only", False)
         item_order = shop_config.get("default_order", list(self.config.get("items", {}).keys()))
         catalog = []
+        normalized_category = self._normalize_shop_category(category) or "all"
 
         for item_key in item_order:
             item = self._get_item(item_key)
@@ -310,17 +332,20 @@ class Economy(commands.Cog):
                 continue
             if item.get("daily_only", False) and not show_daily_only:
                 continue
+            item_type = str(item.get("type", "collectible")).lower()
+            if normalized_category != "all" and item_type != normalized_category:
+                continue
             catalog.append((item_key, item))
 
         return catalog
 
-    def _search_shop_items(self, query: str):
+    def _search_shop_items(self, query: str, category: str = "all"):
         term = self._normalize_item_id(query or "")
         if not term:
             return []
 
         matches = []
-        for item_key, item in self._get_shop_catalog():
+        for item_key, item in self._get_shop_catalog(category):
             searchable = [
                 item_key,
                 item.get("name", ""),
@@ -335,7 +360,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="shop")
     async def shop(self, ctx, *args):
-        """Displays the shop, supports item lookup, pagination, and search."""
+        """Displays the shop, supports item lookup, pagination, search, and category filters."""
         if not self._check_db():
             await ctx.send("❌ PostgreSQL database connection is not configured/available.")
             return
@@ -346,8 +371,19 @@ class Economy(commands.Cog):
         show_daily_only = shop_config.get("show_daily_only", False)
         page_size = 6
 
+        category = "all"
+        filtered_args = []
+        for token in args:
+            normalized_category = self._normalize_shop_category(token)
+            if normalized_category:
+                category = normalized_category
+            else:
+                filtered_args.append(token)
+
+        args = filtered_args
+
         if not args:
-            catalog = self._get_shop_catalog()
+            catalog = self._get_shop_catalog(category)
             page = 1
             query = None
         elif args[0].lower() in ["search", "find", "lookup"]:
@@ -355,10 +391,10 @@ class Economy(commands.Cog):
             if not query:
                 await ctx.send("❌ Please add a search term, for example: `$shop search relic`.")
                 return
-            catalog = self._search_shop_items(query)
+            catalog = self._search_shop_items(query, category)
             page = 1
             if not catalog:
-                await ctx.send(f"❌ No shop items match `{query}`.")
+                await ctx.send(f"❌ No shop items match `{query}` in the `{category}` category.")
                 return
         elif args[0].lower() in ["page", "p"]:
             try:
@@ -366,34 +402,35 @@ class Economy(commands.Cog):
             except ValueError:
                 await ctx.send("❌ Please use a valid page number, for example: `$shop page 2`.")
                 return
-            catalog = self._get_shop_catalog()
+            catalog = self._get_shop_catalog(category)
             query = None
         elif args[0].lower() in ["next", "n"]:
-            page = 2
-            catalog = self._get_shop_catalog()
+            catalog = self._get_shop_catalog(category)
+            total_pages = max(1, (len(catalog) + page_size - 1) // page_size)
+            page = 2 if total_pages > 1 else 1
             query = None
         elif args[0].lower() in ["prev", "previous", "back", "b"]:
+            catalog = self._get_shop_catalog(category)
             page = 1
-            catalog = self._get_shop_catalog()
             query = None
         elif args[0].lower() in ["first", "start"]:
+            catalog = self._get_shop_catalog(category)
             page = 1
-            catalog = self._get_shop_catalog()
             query = None
         elif args[0].lower() in ["last"]:
-            catalog = self._get_shop_catalog()
+            catalog = self._get_shop_catalog(category)
             page = max(1, len(catalog) // page_size + (1 if len(catalog) % page_size else 0))
             query = None
         elif args[0].isdigit():
             page = int(args[0])
-            catalog = self._get_shop_catalog()
+            catalog = self._get_shop_catalog(category)
             query = None
         else:
             lookup = " ".join(args)
             normalized_id = self._resolve_item_id(lookup)
             item = self._get_item(normalized_id)
             if not item or (item.get("daily_only", False) and not show_daily_only):
-                matches = self._search_shop_items(lookup)
+                matches = self._search_shop_items(lookup, category)
                 if not matches:
                     await ctx.send("❌ That item is not available in the shop.")
                     return
@@ -409,18 +446,19 @@ class Economy(commands.Cog):
                 embed.add_field(name="Rarity", value=item.get("rarity", "Unknown"), inline=True)
                 embed.add_field(name="Buy Price", value=self._format_shop_price(item.get("buy_price", 0), currency), inline=True)
                 embed.add_field(name="Sell Price", value=self._format_shop_price(item.get("sell_price", 0), currency), inline=True)
+                embed.add_field(name="Type", value=str(item.get("type", "collectible")).capitalize(), inline=True)
                 embed.add_field(name="Daily Only", value="Yes" if item.get("daily_only", False) else "No", inline=True)
                 embed.set_footer(text="Use $shop page 2 or $shop search relic to browse more items.")
                 await ctx.send(embed=embed)
                 return
 
         if not catalog:
-            await ctx.send("❌ No shop items are configured or available.")
+            await ctx.send(f"❌ No shop items are available in the `{category}` category.")
             return
 
         total_pages = max(1, (len(catalog) + page_size - 1) // page_size)
         page = max(1, min(page, total_pages))
-        embed = self._build_shop_page_embed(catalog, page, query=query, currency=currency, page_size=page_size)
+        embed = self._build_shop_page_embed(catalog, page, query=query, currency=currency, page_size=page_size, category=category)
         await ctx.send(embed=embed)
 
     @commands.command(name="buy")
