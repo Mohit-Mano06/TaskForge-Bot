@@ -45,7 +45,7 @@ GIVEAWAY_ALLOWED_STARTER_IDS = set(OWNER_IDS)
 
 # For testing, keep this as a placeholder so it does not spam everyone.
 # Later, replace it with "@everyone" or your own mention if you want a wider ping.
-GIVEAWAY_PING_TEXT = "<@450626076079554573>"
+GIVEAWAY_PING_TEXT = "<@everyone>"
 
 DATA_PATH = os.path.join("data", "giveaway_entries.json")
 
