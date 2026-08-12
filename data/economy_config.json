@@ -135,6 +135,96 @@
       "buy_price": 0,
       "sell_price": 0,
       "daily_only": true
+    },
+    "golden_coin": {
+      "name": "🪙 Golden Coin",
+      "description": "A shiny golden coin just for flexing.",
+      "rarity": "Collectible",
+      "buy_price": 10000,
+      "sell_price": 5000,
+      "daily_only": false,
+      "aliases": ["gold coin", "coin"]
+    },
+    "ancient_relic": {
+      "name": "🏺 Ancient Relic",
+      "description": "A mysterious relic from the past.",
+      "rarity": "Collectible",
+      "buy_price": 20000,
+      "sell_price": 10000,
+      "daily_only": false,
+      "aliases": ["relic", "ancient"]
+    },
+    "diamond_trophy": {
+      "name": "🏆 Diamond Trophy",
+      "description": "Ultra rare flex item.",
+      "rarity": "Collectible",
+      "buy_price": 50000,
+      "sell_price": 25000,
+      "daily_only": false,
+      "aliases": ["trophy", "diamond"]
+    },
+    "limited_poster": {
+      "name": "🎴 Limited Poster",
+      "description": "A limited edition poster.",
+      "rarity": "Collectible",
+      "buy_price": 8000,
+      "sell_price": 4000,
+      "daily_only": false,
+      "aliases": ["poster", "limited poster"]
+    },
+    "crystal_skull": {
+      "name": "💀 Crystal Skull",
+      "description": "Looks cursed but valuable.",
+      "rarity": "Collectible",
+      "buy_price": 30000,
+      "sell_price": 15000,
+      "daily_only": false,
+      "aliases": ["skull", "crystal"]
+    },
+    "cool_badge": {
+      "name": "🎖️ Cool Badge",
+      "description": "A cool badge that shows on your profile.",
+      "rarity": "Cosmetic",
+      "buy_price": 5000,
+      "sell_price": 2500,
+      "daily_only": false,
+      "aliases": ["badge"]
+    },
+    "vip_name_color": {
+      "name": "✨ VIP Name Color",
+      "description": "Changes your name color.",
+      "rarity": "Cosmetic",
+      "buy_price": 12000,
+      "sell_price": 6000,
+      "daily_only": false,
+      "aliases": ["name color", "vip color"]
+    },
+    "profile_frame": {
+      "name": "🖼️ Profile Frame",
+      "description": "Adds a frame to your profile.",
+      "rarity": "Cosmetic",
+      "buy_price": 10000,
+      "sell_price": 5000,
+      "daily_only": false,
+      "aliases": ["frame", "profile frame"]
+    },
+    "glowing_aura": {
+      "name": "✨ Glowing Aura",
+      "description": "Gives your profile a glowing effect.",
+      "rarity": "Cosmetic",
+      "buy_price": 15000,
+      "sell_price": 7500,
+      "daily_only": false,
+      "aliases": ["aura", "glow"]
+    },
+    "shadow_theme": {
+      "name": "🌑 Shadow Theme",
+      "description": "Dark themed profile style.",
+      "rarity": "Cosmetic",
+      "buy_price": 9000,
+      "sell_price": 4500,
+      "daily_only": false,
+      "aliases": ["theme", "dark theme"]
     }
   },
   "shop": {
@@ -145,7 +235,17 @@
       "energy_drink",
       "lucky_coin",
       "lucky_clover",
-      "treasure_map"
+      "treasure_map",
+      "golden_coin",
+      "ancient_relic",
+      "diamond_trophy",
+      "limited_poster",
+      "crystal_skull",
+      "cool_badge",
+      "vip_name_color",
+      "profile_frame",
+      "glowing_aura",
+      "shadow_theme"
     ],
     "show_daily_only": false
   }

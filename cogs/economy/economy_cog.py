@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 from cogs.economy import db
@@ -16,7 +17,7 @@ class Economy(commands.Cog):
 
     def _load_config(self):
         try:
-            with open("data/economy_config.json", "r") as f:
+            with open("data/economy_config.json", "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             print(f"Error loading economy_config.json: {e}")
@@ -260,62 +261,194 @@ class Economy(commands.Cog):
             return "Unavailable"
         return f"{currency} {price:,}"
 
-    @commands.command(name="shop")
-    async def shop(self, ctx, item_id: str | None = None):
-        """Displays the shop or details for a specific item."""
-        if not self._check_db():
-            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
-            return
-
-        shop_config = self.config.get("shop", {})
-        currency = shop_config.get("currency_symbol", "🪙")
-        show_daily_only = shop_config.get("show_daily_only", False)
-        item_order = shop_config.get("default_order", list(self.config.get("items", {}).keys()))
-
-        if item_id:
-            normalized_id = self._resolve_item_id(item_id)
-            item = self._get_item(normalized_id)
-            if not item or (item.get("daily_only", False) and not show_daily_only):
-                await ctx.send("❌ That item is not available in the shop.")
-                return
-
-            embed = discord.Embed(
-                title=f"🛒 {item.get('name', normalized_id)}",
-                description=item.get("description", "No description available."),
-                color=discord.Color.blue()
-            )
-            embed.add_field(name="Rarity", value=item.get("rarity", "Unknown"), inline=True)
-            embed.add_field(name="Buy Price", value=self._format_shop_price(item.get("buy_price", 0), currency), inline=True)
-            embed.add_field(name="Sell Price", value=self._format_shop_price(item.get("sell_price", 0), currency), inline=True)
-            embed.add_field(name="Daily Only", value="Yes" if item.get("daily_only", False) else "No", inline=True)
-            await ctx.send(embed=embed)
-            return
+    def _build_shop_page_embed(self, catalog, page, query=None, currency="🪙", page_size=6):
+        total_pages = max(1, (len(catalog) + page_size - 1) // page_size)
+        valid_page = max(1, min(int(page), total_pages))
+        start = (valid_page - 1) * page_size
+        end = start + page_size
+        visible_items = catalog[start:end]
 
         lines = []
+        for item_key, item in visible_items:
+            buy_price = int(item.get("buy_price", 0) or 0)
+            name = item.get("name", item_key)
+            if buy_price <= 0:
+                lines.append(f"**{name}** — Unavailable • {item.get('description', '')}")
+            else:
+                lines.append(f"**{name}** — {currency} {buy_price:,} • {item.get('description', '')}")
+
+        embed = discord.Embed(
+            title="🛒 TaskForge Shop",
+            description="Use `$buy <item_id> <quantity>` to purchase and `$sell <item_id> <quantity>` to sell items.\nSearch: `$shop search relic`   Page: `$shop page 2`",
+            color=discord.Color.blue()
+        )
+        if not lines:
+            lines = ["No items available on this page."]
+
+        embed.add_field(name=f"Available Items • Page {valid_page}/{total_pages}", value="\n".join(lines), inline=False)
+        if query:
+            embed.set_footer(text=f"Search results for: {query} | React to browse pages")
+        else:
+            embed.set_footer(text="Use $shop page 2 or $shop search relic to browse more items. | React to browse pages")
+        return embed
+
+    async def _run_shop_paginator(self, ctx, message, catalog, query=None, currency="🪙", start_page=1, page_size=6):
+        total_pages = max(1, (len(catalog) + page_size - 1) // page_size)
+        current_page = max(1, min(int(start_page), total_pages))
+        reactions = ("⏮️", "⬅️", "➡️", "⏭️", "🛑")
+
+        for emoji in reactions:
+            await message.add_reaction(emoji)
+
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for(
+                    "reaction_add",
+                    check=lambda r, u: r.message.id == message.id and u.id == ctx.author.id and str(r.emoji) in reactions,
+                    timeout=180
+                )
+            except asyncio.TimeoutError:
+                try:
+                    await message.clear_reactions()
+                except Exception:
+                    pass
+                return
+
+            emoji = str(reaction.emoji)
+
+            if emoji == "⏮️":
+                current_page = 1
+            elif emoji == "⬅️":
+                current_page = max(1, current_page - 1)
+            elif emoji == "➡️":
+                current_page = min(total_pages, current_page + 1)
+            elif emoji == "⏭️":
+                current_page = total_pages
+            elif emoji == "🛑":
+                try:
+                    await message.clear_reactions()
+                except Exception:
+                    pass
+                return
+
+            await message.edit(embed=self._build_shop_page_embed(catalog, current_page, query=query, currency=currency, page_size=page_size))
+            try:
+                await message.remove_reaction(reaction.emoji, user)
+            except Exception:
+                pass
+
+    def _get_shop_catalog(self):
+        self.config = self._load_config()
+        shop_config = self.config.get("shop", {})
+        show_daily_only = shop_config.get("show_daily_only", False)
+        item_order = shop_config.get("default_order", list(self.config.get("items", {}).keys()))
+        catalog = []
+
         for item_key in item_order:
             item = self._get_item(item_key)
             if not item:
                 continue
             if item.get("daily_only", False) and not show_daily_only:
                 continue
+            catalog.append((item_key, item))
 
-            buy_price = int(item.get("buy_price", 0) or 0)
-            if buy_price <= 0:
-                lines.append(f"**{item.get('name')}** — Unavailable • {item.get('description', '')}")
+        return catalog
+
+    def _search_shop_items(self, query: str):
+        term = self._normalize_item_id(query or "")
+        if not term:
+            return []
+
+        matches = []
+        for item_key, item in self._get_shop_catalog():
+            searchable = [
+                item_key,
+                item.get("name", ""),
+                item.get("description", ""),
+                *item.get("aliases", [])
+            ]
+            normalized_values = [self._normalize_item_id(str(value)) for value in searchable if value]
+            if any(term in value for value in normalized_values):
+                matches.append((item_key, item))
+
+        return matches
+
+    @commands.command(name="shop")
+    async def shop(self, ctx, *args):
+        """Displays the shop, supports item lookup, pagination, and search."""
+        if not self._check_db():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+
+        self.config = self._load_config()
+        shop_config = self.config.get("shop", {})
+        currency = shop_config.get("currency_symbol", "🪙")
+        show_daily_only = shop_config.get("show_daily_only", False)
+        page_size = 6
+
+        if not args:
+            catalog = self._get_shop_catalog()
+            page = 1
+            query = None
+        elif args[0].lower() in ["search", "find", "lookup"]:
+            query = " ".join(args[1:]).strip()
+            if not query:
+                await ctx.send("❌ Please add a search term, for example: `$shop search relic`.")
+                return
+            catalog = self._search_shop_items(query)
+            page = 1
+            if not catalog:
+                await ctx.send(f"❌ No shop items match `{query}`.")
+                return
+        elif args[0].lower() in ["page", "p"]:
+            try:
+                page = int(args[1]) if len(args) > 1 else 1
+            except ValueError:
+                await ctx.send("❌ Please use a valid page number, for example: `$shop page 2`.")
+                return
+            catalog = self._get_shop_catalog()
+            query = None
+        elif args[0].isdigit():
+            page = int(args[0])
+            catalog = self._get_shop_catalog()
+            query = None
+        else:
+            lookup = " ".join(args)
+            normalized_id = self._resolve_item_id(lookup)
+            item = self._get_item(normalized_id)
+            if not item or (item.get("daily_only", False) and not show_daily_only):
+                matches = self._search_shop_items(lookup)
+                if not matches:
+                    await ctx.send("❌ That item is not available in the shop.")
+                    return
+                catalog = matches
+                page = 1
+                query = lookup
             else:
-                lines.append(f"**{item.get('name')}** — {currency} {buy_price:,} • {item.get('description', '')}")
+                embed = discord.Embed(
+                    title=f"🛒 {item.get('name', normalized_id)}",
+                    description=item.get("description", "No description available."),
+                    color=discord.Color.blue()
+                )
+                embed.add_field(name="Rarity", value=item.get("rarity", "Unknown"), inline=True)
+                embed.add_field(name="Buy Price", value=self._format_shop_price(item.get("buy_price", 0), currency), inline=True)
+                embed.add_field(name="Sell Price", value=self._format_shop_price(item.get("sell_price", 0), currency), inline=True)
+                embed.add_field(name="Daily Only", value="Yes" if item.get("daily_only", False) else "No", inline=True)
+                embed.set_footer(text="Use $shop page 2 or $shop search relic to browse more items.")
+                await ctx.send(embed=embed)
+                return
 
-        if not lines:
+        if not catalog:
             await ctx.send("❌ No shop items are configured or available.")
             return
 
-        embed = discord.Embed(
-            title="🛒 TaskForge Shop",
-            description="Use `$buy <item_id> <quantity>` to purchase and `$sell <item_id> <quantity>` to sell items.",
-            color=discord.Color.blue()
-        )
-        embed.add_field(name="Available Items", value="\n".join(lines), inline=False)
-        await ctx.send(embed=embed)
+        total_pages = max(1, (len(catalog) + page_size - 1) // page_size)
+        page = max(1, min(page, total_pages))
+        embed = self._build_shop_page_embed(catalog, page, query=query, currency=currency, page_size=page_size)
+        message = await ctx.send(embed=embed)
+
+        if total_pages > 1:
+            await self._run_shop_paginator(ctx, message, catalog, query=query, currency=currency, start_page=page, page_size=page_size)
 
     @commands.command(name="buy")
     async def buy(self, ctx, item_id: str, quantity: int = 1):
