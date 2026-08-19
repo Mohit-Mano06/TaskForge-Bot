@@ -36,12 +36,15 @@ async def ensure_economy_schema(pool: asyncpg.Pool):
                 description text,
                 created_at timestamptz NOT NULL DEFAULT now()
             );
+            CREATE TABLE IF NOT EXISTS public.economy_achievements (
+                achievement_id text PRIMARY KEY,
+                name text NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS public.economy_user_achievements (
                 user_id text NOT NULL,
                 guild_id text NOT NULL,
                 achievement_id text NOT NULL,
-                name text NOT NULL,
-                earned_at timestamptz NOT NULL DEFAULT now(),
+                unlocked_at timestamptz NOT NULL DEFAULT now(),
                 PRIMARY KEY (user_id, guild_id, achievement_id)
             );
             ALTER TABLE public.economy_users
@@ -478,11 +481,16 @@ async def record_achievement(pool, user_id, guild_id, achievement_id, name, rewa
     user_id, guild_id = str(user_id), str(guild_id)
     async with pool.acquire() as conn:
         async with conn.transaction():
+            await conn.execute(
+                "INSERT INTO public.economy_achievements (achievement_id, name) "
+                "VALUES ($1, $2) ON CONFLICT (achievement_id) DO UPDATE SET name = EXCLUDED.name",
+                achievement_id, name
+            )
             inserted = await conn.fetchval(
                 "INSERT INTO public.economy_user_achievements "
-                "(user_id, guild_id, achievement_id, name) VALUES ($1, $2, $3, $4) "
+                "(user_id, guild_id, achievement_id) VALUES ($1, $2, $3) "
                 "ON CONFLICT (user_id, guild_id, achievement_id) DO NOTHING RETURNING achievement_id",
-                user_id, guild_id, achievement_id, name
+                user_id, guild_id, achievement_id
             )
             if not inserted:
                 return False
@@ -502,8 +510,12 @@ async def record_achievement(pool, user_id, guild_id, achievement_id, name, rewa
 async def get_achievements(pool, user_id, guild_id):
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT achievement_id, name, earned_at FROM public.economy_user_achievements "
-            "WHERE user_id = $1 AND guild_id = $2 ORDER BY earned_at", str(user_id), str(guild_id)
+            "SELECT ua.achievement_id, COALESCE(a.name, ua.achievement_id) AS name, "
+            "ua.unlocked_at AS earned_at "
+            "FROM public.economy_user_achievements ua "
+            "LEFT JOIN public.economy_achievements a ON a.achievement_id = ua.achievement_id "
+            "WHERE ua.user_id = $1 AND ua.guild_id = $2 ORDER BY ua.unlocked_at",
+            str(user_id), str(guild_id)
         )
         return [dict(row) for row in rows]
 
