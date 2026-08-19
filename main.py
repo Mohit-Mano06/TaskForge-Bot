@@ -161,6 +161,7 @@ async def setup_hook():
         "cogs.leaderboard.leaderboard_tracker",
         "cogs.leaderboard.leaderboard_commands",
         "cogs.economy.economy_cog",
+        "cogs.economy.advanced",
         "cogs.economy.giveaway"
     ]
     

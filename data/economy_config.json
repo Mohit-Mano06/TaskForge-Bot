@@ -16,6 +16,15 @@
     "enabled": true,
     "wallet": 100
   },
+  "advanced_economy": {
+    "work_cooldown_seconds": 3600,
+    "work_min": 100,
+    "work_max": 400,
+    "work_xp": 20,
+    "event_cooldown_seconds": 7200,
+    "prestige_level": 50,
+    "prestige_reward": 5000
+  },
   "daily_rewards": {
     "probabilities": {
       "common": 70,
