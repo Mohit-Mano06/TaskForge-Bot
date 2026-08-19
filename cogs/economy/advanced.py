@@ -38,30 +38,51 @@ class AdvancedEconomy(commands.Cog):
         return await db.get_or_create_user(self.bot.db_pool, ctx.author.id, ctx.guild.id)
 
     @commands.command(name="gift")
-    async def gift(self, ctx, recipient: discord.Member, amount_or_item: str, quantity: int | None = None):
-        """Gift wallet coins or inventory items to another member."""
+    async def gift(self, ctx, *arguments):
+        """Gift coins or items using either item-first or user-first syntax."""
         if not self._ready():
             await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+
+        if len(arguments) < 2:
+            await ctx.send("❌ Use `$gift @user <coins>` or `$gift <item> @user [quantity]`.")
+            return
+
+        recipient = None
+        recipient_index = None
+        member_converter = commands.MemberConverter()
+        for index, argument in enumerate(arguments):
+            try:
+                recipient = await member_converter.convert(ctx, argument)
+                recipient_index = index
+                break
+            except commands.MemberNotFound:
+                continue
+
+        if recipient is None:
+            await ctx.send("❌ I could not find that Discord member.")
             return
         if recipient.bot or recipient.id == ctx.author.id:
             await ctx.send("❌ Choose another human member as the recipient.")
             return
 
-        if quantity is None:
+        gift_arguments = [argument for index, argument in enumerate(arguments) if index != recipient_index]
+        if len(gift_arguments) == 1:
             try:
-                amount = int(amount_or_item)
+                amount = int(gift_arguments[0])
             except ValueError:
-                await ctx.send("❌ Use `$gift @user <coins>` or `$gift @user <item> <quantity>`.")
+                amount = None
+            if amount is not None:
+                try:
+                    await db.get_or_create_user(self.bot.db_pool, recipient.id, ctx.guild.id)
+                    await db.gift_currency(self.bot.db_pool, ctx.author.id, recipient.id, ctx.guild.id, amount)
+                    await ctx.send(f"✅ Gifted 🪙 `{amount:,}` to {recipient.mention}.")
+                except ValueError as error:
+                    await ctx.send(f"❌ {error}")
                 return
-            try:
-                await db.get_or_create_user(self.bot.db_pool, recipient.id, ctx.guild.id)
-                await db.gift_currency(self.bot.db_pool, ctx.author.id, recipient.id, ctx.guild.id, amount)
-                await ctx.send(f"✅ Gifted 🪙 `{amount:,}` to {recipient.mention}.")
-            except ValueError as error:
-                await ctx.send(f"❌ {error}")
-            return
 
-        item_id = amount_or_item
+        item_id = gift_arguments[0]
+        quantity = int(gift_arguments[1]) if len(gift_arguments) > 1 and gift_arguments[1].isdigit() else 1
         if quantity <= 0:
             await ctx.send("❌ Quantity must be at least 1.")
             return
