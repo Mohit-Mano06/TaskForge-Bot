@@ -340,3 +340,143 @@ async def reset_economy_data(pool: asyncpg.Pool):
             await conn.execute("DELETE FROM public.economy_inventory")
             await conn.execute("DELETE FROM public.economy_transactions")
             await conn.execute("DELETE FROM public.economy_users")
+
+
+async def gift_currency(pool, sender_id, recipient_id, guild_id, amount):
+    """Atomically transfers wallet currency and records both sides of the gift."""
+    sender_id, recipient_id, guild_id = map(str, (sender_id, recipient_id, guild_id))
+    if amount <= 0 or sender_id == recipient_id:
+        raise ValueError("Invalid gift.")
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            rows = await conn.fetch(
+                "SELECT user_id, wallet FROM public.economy_users "
+                "WHERE guild_id = $1 AND user_id = ANY($2::text[]) FOR UPDATE",
+                guild_id, [sender_id, recipient_id]
+            )
+            balances = {row["user_id"]: row["wallet"] for row in rows}
+            if sender_id not in balances or recipient_id not in balances:
+                raise ValueError("Both users need an economy profile first.")
+            if balances[sender_id] < amount:
+                raise ValueError("Insufficient wallet balance.")
+
+            await conn.execute(
+                "UPDATE public.economy_users SET wallet = wallet - $3, updated_at = NOW() "
+                "WHERE user_id = $1 AND guild_id = $2", sender_id, guild_id, amount
+            )
+            await conn.execute(
+                "UPDATE public.economy_users SET wallet = wallet + $3, updated_at = NOW() "
+                "WHERE user_id = $1 AND guild_id = $2", recipient_id, guild_id, amount
+            )
+            description = f"Gift from {sender_id} to {recipient_id}"
+            await conn.executemany(
+                "INSERT INTO public.economy_transactions "
+                "(user_id, guild_id, amount, type, description) VALUES ($1, $2, $3, $4, $5)",
+                [(sender_id, guild_id, -amount, "GIFT_SENT", description),
+                 (recipient_id, guild_id, amount, "GIFT_RECEIVED", description)]
+            )
+
+
+async def gift_item(pool, sender_id, recipient_id, guild_id, item_id, quantity):
+    """Atomically moves inventory items between two users."""
+    sender_id, recipient_id, guild_id = map(str, (sender_id, recipient_id, guild_id))
+    if quantity <= 0 or sender_id == recipient_id:
+        raise ValueError("Invalid item gift.")
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT quantity FROM public.economy_inventory "
+                "WHERE user_id = $1 AND guild_id = $2 AND item_id = $3 FOR UPDATE",
+                sender_id, guild_id, item_id
+            )
+            if not row or row["quantity"] < quantity:
+                raise ValueError("Insufficient item quantity.")
+            remaining = row["quantity"] - quantity
+            if remaining:
+                await conn.execute(
+                    "UPDATE public.economy_inventory SET quantity = $4 "
+                    "WHERE user_id = $1 AND guild_id = $2 AND item_id = $3",
+                    sender_id, guild_id, item_id, remaining
+                )
+            else:
+                await conn.execute(
+                    "DELETE FROM public.economy_inventory "
+                    "WHERE user_id = $1 AND guild_id = $2 AND item_id = $3",
+                    sender_id, guild_id, item_id
+                )
+            await conn.execute(
+                "INSERT INTO public.economy_inventory (user_id, guild_id, item_id, quantity) "
+                "VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, guild_id, item_id) "
+                "DO UPDATE SET quantity = economy_inventory.quantity + EXCLUDED.quantity",
+                recipient_id, guild_id, item_id, quantity
+            )
+
+
+async def get_economy_leaderboard(pool, guild_id, limit=10):
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT user_id, wallet, bank, level, prestige FROM public.economy_users "
+            "WHERE guild_id = $1 ORDER BY (wallet + bank) DESC LIMIT $2",
+            str(guild_id), limit
+        )
+        return [dict(row) for row in rows]
+
+
+async def record_achievement(pool, user_id, guild_id, achievement_id, name, reward_coins=0, reward_xp=0):
+    """Awards an achievement once, including its configured rewards."""
+    user_id, guild_id = str(user_id), str(guild_id)
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            inserted = await conn.fetchval(
+                "INSERT INTO public.economy_user_achievements "
+                "(user_id, guild_id, achievement_id, name) VALUES ($1, $2, $3, $4) "
+                "ON CONFLICT (user_id, guild_id, achievement_id) DO NOTHING RETURNING achievement_id",
+                user_id, guild_id, achievement_id, name
+            )
+            if not inserted:
+                return False
+            if reward_coins:
+                await conn.execute(
+                    "UPDATE public.economy_users SET wallet = wallet + $3, updated_at = NOW() "
+                    "WHERE user_id = $1 AND guild_id = $2", user_id, guild_id, reward_coins
+                )
+            if reward_xp:
+                await conn.execute(
+                    "UPDATE public.economy_users SET xp = xp + $3, updated_at = NOW() "
+                    "WHERE user_id = $1 AND guild_id = $2", user_id, guild_id, reward_xp
+                )
+            return True
+
+
+async def get_achievements(pool, user_id, guild_id):
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT achievement_id, name, earned_at FROM public.economy_user_achievements "
+            "WHERE user_id = $1 AND guild_id = $2 ORDER BY earned_at", str(user_id), str(guild_id)
+        )
+        return [dict(row) for row in rows]
+
+
+async def prestige_user(pool, user_id, guild_id, required_level, reward_coins):
+    """Resets level progress and increments prestige under a row lock."""
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT level, prestige FROM public.economy_users "
+                "WHERE user_id = $1 AND guild_id = $2 FOR UPDATE", str(user_id), str(guild_id)
+            )
+            if not row or row["level"] < required_level:
+                raise ValueError(f"You need level {required_level} to prestige.")
+            updated = await conn.fetchrow(
+                "UPDATE public.economy_users SET level = 1, xp = 0, prestige = prestige + 1, "
+                "wallet = wallet + $3, updated_at = NOW() WHERE user_id = $1 AND guild_id = $2 RETURNING *",
+                str(user_id), str(guild_id), reward_coins
+            )
+            await conn.execute(
+                "INSERT INTO public.economy_transactions "
+                "(user_id, guild_id, amount, type, description) VALUES ($1, $2, $3, 'PRESTIGE', $4)",
+                str(user_id), str(guild_id), reward_coins, "Prestige reward"
+            )
+            return dict(updated)
