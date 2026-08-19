@@ -184,6 +184,9 @@ class AdvancedEconomy(commands.Cog):
             await ctx.send(f"👑 Prestige `{profile['prestige']}` unlocked. Level reset to 1 with 🪙 `{self.config['prestige_reward']:,}`.")
         except ValueError as error:
             await ctx.send(f"❌ {error}")
+        except Exception as error:
+            print(f"Prestige database error: {error}")
+            await ctx.send("❌ Prestige is temporarily unavailable because the economy database needs a migration. Please restart the bot.")
 
 
 async def setup(bot):

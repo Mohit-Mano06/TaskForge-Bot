@@ -17,6 +17,7 @@ import asyncpg
 from logger import send_log
 from bot_logger import log_print, RICH_ENABLED, rich_terminal
 from cogs.admin.config import OWNER_IDS, DEV_GUILD_ID
+from cogs.economy import db as economy_db
 
 class MaintenanceModeActive(commands.CheckFailure):
     def __init__(self, message=None):
@@ -133,10 +134,12 @@ async def setup_hook():
     if db_url:
         try:
             bot.db_pool = await asyncpg.create_pool(dsn=db_url)
+            await economy_db.ensure_economy_schema(bot.db_pool)
             log_print("✅ Connected to PostgreSQL database pool", "success")
         except Exception as e:
-            log_print(f"❌ Failed to connect to PostgreSQL database: {e}", "error")
-            bot.db_pool = None
+            log_print(f"❌ Failed to connect or migrate PostgreSQL database: {e}", "error")
+            if not getattr(bot, 'db_pool', None):
+                bot.db_pool = None
     else:
         log_print("⚠️ DATABASE_URL not found in environment. Economy commands will be disabled.", "warning")
         bot.db_pool = None

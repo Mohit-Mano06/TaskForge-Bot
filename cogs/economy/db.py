@@ -1,6 +1,55 @@
 import asyncpg
 from datetime import datetime, timezone
 
+
+async def ensure_economy_schema(pool: asyncpg.Pool):
+    """Apply additive economy migrations required by the loaded cogs."""
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS public.economy_users (
+                user_id text NOT NULL,
+                guild_id text NOT NULL,
+                wallet integer NOT NULL DEFAULT 0,
+                bank integer NOT NULL DEFAULT 0,
+                xp integer NOT NULL DEFAULT 0,
+                level integer NOT NULL DEFAULT 1,
+                daily_streak integer NOT NULL DEFAULT 0,
+                last_daily timestamptz,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now(),
+                PRIMARY KEY (user_id, guild_id)
+            );
+            CREATE TABLE IF NOT EXISTS public.economy_inventory (
+                user_id text NOT NULL,
+                guild_id text NOT NULL,
+                item_id text NOT NULL,
+                quantity integer NOT NULL DEFAULT 1,
+                PRIMARY KEY (user_id, guild_id, item_id)
+            );
+            CREATE TABLE IF NOT EXISTS public.economy_transactions (
+                id bigserial PRIMARY KEY,
+                user_id text NOT NULL,
+                guild_id text NOT NULL,
+                amount integer NOT NULL,
+                type text NOT NULL,
+                description text,
+                created_at timestamptz NOT NULL DEFAULT now()
+            );
+            CREATE TABLE IF NOT EXISTS public.economy_user_achievements (
+                user_id text NOT NULL,
+                guild_id text NOT NULL,
+                achievement_id text NOT NULL,
+                name text NOT NULL,
+                earned_at timestamptz NOT NULL DEFAULT now(),
+                PRIMARY KEY (user_id, guild_id, achievement_id)
+            );
+            ALTER TABLE public.economy_users
+                ADD COLUMN IF NOT EXISTS prestige integer NOT NULL DEFAULT 0;
+            """
+        )
+
+
 async def get_or_create_user(pool: asyncpg.Pool, user_id: str, guild_id: str) -> dict:
     """Gets a user's economy record, creating one with default values if it doesn't exist."""
     user_id = str(user_id)
