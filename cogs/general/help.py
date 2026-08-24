@@ -83,13 +83,23 @@ class Help(commands.Cog):
         # Mapping Cogs to categories
         cog_mapping = {
             "Moderation": "Admin",
+            "Maintenance": "Admin",
             "MusicPlayer": "Music",
+            "AIDJ": "Music",
             "Utility": "Utility",
             "Reminder": "Utility",
             "AIChat": "AI Assistant",
-            "Insights": "AI Assistant",
-            "AIDJ": "Music",
+            "AIInsights": "AI Assistant",
+            "Economy": "Economy",
+            "AdvancedEconomy": "Economy",
+            "GiveawayCog": "Economy",
+            "LeaderboardCommands": "Leaderboard",
+            "LeaderboardTracker": "Leaderboard",
             "Confession": "Social",
+            "Announcement": "General",
+            "SetupGuide": "General",
+            "Help": "General",
+            "System": "Info",
             "Info": "Info",
             "Status": "Info",
             "General": "General"
@@ -107,7 +117,11 @@ class Help(commands.Cog):
             if category not in cog_commands:
                 cog_commands[category] = []
 
-            cog_commands[category].append(command.name)
+            cog_commands[category].append(command.qualified_name)
+
+            for subcommand in command.walk_commands():
+                if not subcommand.hidden:
+                    cog_commands[category].append(subcommand.qualified_name)
 
         view = HelpView(self.bot, cog_commands, ctx)
 
@@ -117,6 +131,8 @@ class Help(commands.Cog):
             "🛠️ **Admin** - Commands for moderators\n"
             "🤖 **AI Assistant** - Chat normally ($chat/$talk) or get roasted ($roast)\n"
             "🎵 **Music** - Play tunes and manage queues\n"
+            "💰 **Economy** - Manage profiles, items, and giveaways\n"
+            "📊 **Leaderboard** - View server activity rankings\n"
             "⚙️ **Utility** - Reminders and helpful tools\n"
             "📢 **Social** - Confessions and fun\n"
             "📁 **Info** - Bot information and status\n\n"
