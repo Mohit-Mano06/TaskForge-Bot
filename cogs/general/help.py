@@ -119,9 +119,10 @@ class Help(commands.Cog):
 
             cog_commands[category].append(command.qualified_name)
 
-            for subcommand in command.walk_commands():
-                if not subcommand.hidden:
-                    cog_commands[category].append(subcommand.qualified_name)
+            if isinstance(command, commands.Group):
+                for subcommand in command.walk_commands():
+                    if not subcommand.hidden:
+                        cog_commands[category].append(subcommand.qualified_name)
 
         view = HelpView(self.bot, cog_commands, ctx)
 
