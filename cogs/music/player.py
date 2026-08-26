@@ -5,6 +5,7 @@ import yt_dlp
 import os
 import json
 import wavelink
+from collections import defaultdict, deque
 
 
 # FFmpeg: auto-detect system binary (Linux/Ubuntu) or local exe (Windows)
@@ -157,6 +158,9 @@ class MusicPlayer(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.players = {}
+        self.lavalink_queues = defaultdict(deque)
+        self.lavalink_current = {}
+        self.lavalink_channels = {}
 
     def get_player(self, ctx):
         """Retrieve the guild player, or generate one."""
@@ -191,7 +195,7 @@ class MusicPlayer(commands.Cog):
         if voice_client is None:
             voice_client = await channel.connect(cls=wavelink.Player)
         elif not voice_client.connected:
-            await voice_client.connect(channel)
+            await voice_client.connect(reconnect=True)
         elif voice_client.channel != channel:
             await voice_client.move_to(channel)
 
@@ -200,6 +204,12 @@ class MusicPlayer(commands.Cog):
             if not tracks:
                 return await ctx.send("❌ Lavalink could not find a playable track for that query.")
             track = tracks[0]
+            guild_id = ctx.guild.id
+            self.lavalink_channels[guild_id] = ctx.channel
+            if voice_client.playing or voice_client.paused:
+                self.lavalink_queues[guild_id].append(track)
+                return await ctx.send(f"✅ Added to queue: `{track.title}` (position {len(self.lavalink_queues[guild_id])})")
+            self.lavalink_current[guild_id] = track
             await voice_client.play(track)
 
         await ctx.send(f"✅ Now playing: `{track.title}`")
@@ -212,6 +222,13 @@ class MusicPlayer(commands.Cog):
                 await player.vc.disconnect()
         except KeyError:
             pass
+
+    async def _cleanup_lavalink(self, guild):
+        self.lavalink_queues.pop(guild.id, None)
+        self.lavalink_current.pop(guild.id, None)
+        self.lavalink_channels.pop(guild.id, None)
+        if isinstance(guild.voice_client, wavelink.Player):
+            await guild.voice_client.disconnect()
 
     @commands.command(name='play', help='Plays a song from YouTube')
     async def play(self, ctx, *, search: str):
@@ -256,6 +273,11 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(name='pause', help='Pauses the current song')
     async def pause(self, ctx):
+        if self._lavalink_enabled() and isinstance(ctx.voice_client, wavelink.Player):
+            if ctx.voice_client.playing:
+                await ctx.voice_client.pause(True)
+                return await ctx.send("⏸️ Paused.")
+            return await ctx.send("❌ Nothing is currently playing.")
         player = self.get_player(ctx)
         if player.vc and player.vc.is_playing():
             player.vc.pause()
@@ -263,6 +285,11 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(name='resume', help='Resumes the current song')
     async def resume(self, ctx):
+        if self._lavalink_enabled() and isinstance(ctx.voice_client, wavelink.Player):
+            if ctx.voice_client.paused:
+                await ctx.voice_client.pause(False)
+                return await ctx.send("▶️ Resumed.")
+            return await ctx.send("❌ The player is not paused.")
         player = self.get_player(ctx)
         if player.vc and player.vc.is_paused():
             player.vc.resume()
@@ -270,6 +297,11 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(name='skip', help='Skips the current song')
     async def skip(self, ctx):
+        if self._lavalink_enabled() and isinstance(ctx.voice_client, wavelink.Player):
+            if ctx.voice_client.playing or ctx.voice_client.paused:
+                await ctx.voice_client.stop()
+                return await ctx.send("⏭️ Skipped.")
+            return await ctx.send("❌ Nothing is currently playing.")
         player = self.get_player(ctx)
         if player.vc and player.vc.is_playing():
             player.vc.stop()
@@ -278,6 +310,8 @@ class MusicPlayer(commands.Cog):
     @commands.command(name='stop', help='Stops music and leaves the VC')
     async def stop(self, ctx):
         if self._lavalink_enabled() and isinstance(ctx.voice_client, wavelink.Player):
+            self.lavalink_queues.pop(ctx.guild.id, None)
+            self.lavalink_current.pop(ctx.guild.id, None)
             await ctx.voice_client.stop()
             await ctx.voice_client.disconnect()
             return await ctx.send("⏹️ Stopped and disconnected.")
@@ -289,7 +323,7 @@ class MusicPlayer(commands.Cog):
     @commands.command(name='disconnect', aliases=['leave'], help='Leaves the voice channel')
     async def disconnect(self, ctx):
         if isinstance(ctx.voice_client, wavelink.Player):
-            await ctx.voice_client.disconnect()
+            await self._cleanup_lavalink(ctx.guild)
             return await ctx.send("👋 Disconnected from the voice channel.")
         if ctx.voice_client:
             await self.cleanup_player(ctx.guild)
@@ -297,6 +331,14 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(name='queue', help='Shows the current music queue')
     async def queue_info(self, ctx):
+        if self._lavalink_enabled() and isinstance(ctx.voice_client, wavelink.Player):
+            current = self.lavalink_current.get(ctx.guild.id)
+            queued = self.lavalink_queues.get(ctx.guild.id, ())
+            if not current and not queued:
+                return await ctx.send("🎧 The queue is currently empty.")
+            lines = [f"🎵 Now playing: `{current.title}`" if current else "🎵 Nothing currently playing."]
+            lines.extend(f"{index}. `{track.title}`" for index, track in enumerate(queued, start=1))
+            return await ctx.send("🎧 **Lavalink Queue**\n" + "\n".join(lines))
         player = self.get_player(ctx)
 
         if not player.current and player.queue.empty():
@@ -320,11 +362,91 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(name="clear", help="Clears the music queue")
     async def clear(self, ctx):
+        if self._lavalink_enabled() and isinstance(ctx.voice_client, wavelink.Player):
+            queue = self.lavalink_queues.get(ctx.guild.id)
+            if not queue:
+                return await ctx.send("Queue is already empty.")
+            queue.clear()
+            await ctx.send("🧹 Upcoming Lavalink tracks cleared.")
+            return
         player = self.get_player(ctx)
         if player.queue.empty():
             return await ctx.send("Queue is already empty.")
         player.queue = asyncio.Queue()
         await ctx.send("🧹 Queue cleared.")
+
+    @commands.command(name="volume", help="Sets playback volume from 0 to 100")
+    async def volume(self, ctx, value: int):
+        if not 0 <= value <= 100:
+            return await ctx.send("❌ Volume must be between 0 and 100.")
+        if self._lavalink_enabled() and isinstance(ctx.voice_client, wavelink.Player):
+            await ctx.voice_client.set_volume(value)
+            return await ctx.send(f"🔊 Volume set to `{value}%`.")
+        player = self.get_player(ctx)
+        if player.vc and player.vc.source:
+            player.vc.source.volume = value / 100
+            await ctx.send(f"🔊 Volume set to `{value}%`.")
+        else:
+            await ctx.send("❌ Nothing is currently playing.")
+
+    @commands.command(name="nowplaying", aliases=["np"], help="Shows the current track")
+    async def nowplaying(self, ctx):
+        if self._lavalink_enabled() and isinstance(ctx.voice_client, wavelink.Player):
+            track = self.lavalink_current.get(ctx.guild.id)
+            if not track:
+                return await ctx.send("❌ Nothing is currently playing.")
+            length = getattr(track, "length", 0) or 0
+            position = getattr(ctx.voice_client, "position", 0) or 0
+            return await ctx.send(f"🎵 **Now playing:** `{track.title}`\n`{self._format_duration(position)} / {self._format_duration(length)}`")
+        player = self.get_player(ctx)
+        if player.current:
+            return await ctx.send(f"🎵 **Now playing:** `{player.current.title}`")
+        await ctx.send("❌ Nothing is currently playing.")
+
+    @staticmethod
+    def _format_duration(milliseconds):
+        total_seconds = max(0, int(milliseconds // 1000))
+        minutes, seconds = divmod(total_seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        return f"{hours}:{minutes:02d}:{seconds:02d}" if hours else f"{minutes}:{seconds:02d}"
+
+    @commands.command(name="seek", help="Seeks to a position in seconds")
+    async def seek(self, ctx, seconds: int):
+        if seconds < 0:
+            return await ctx.send("❌ Position cannot be negative.")
+        if self._lavalink_enabled() and isinstance(ctx.voice_client, wavelink.Player):
+            track = self.lavalink_current.get(ctx.guild.id)
+            if not track:
+                return await ctx.send("❌ Nothing is currently playing.")
+            length = getattr(track, "length", 0) or 0
+            if seconds * 1000 > length:
+                return await ctx.send("❌ That position is beyond the track length.")
+            await ctx.voice_client.seek(seconds * 1000)
+            return await ctx.send(f"⏩ Seeked to `{self._format_duration(seconds * 1000)}`.")
+        await ctx.send("❌ Seeking is unavailable because the current backend is not playing a seekable track.")
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(self, payload):
+        player = payload.player
+        guild_id = player.guild.id
+        self.lavalink_current.pop(guild_id, None)
+        queue = self.lavalink_queues.get(guild_id)
+        if not queue or not player.connected:
+            return
+        track = queue.popleft()
+        self.lavalink_current[guild_id] = track
+        await player.play(track)
+        channel = self.lavalink_channels.get(guild_id)
+        if channel:
+            await channel.send(f"🎵 **Now playing:** `{track.title}`")
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_exception(self, payload):
+        print(f"[Lavalink Error] Track failed: {payload.exception}")
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_stuck(self, payload):
+        print(f"[Lavalink Error] Track stuck: {payload.threshold}ms")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -332,6 +454,9 @@ class MusicPlayer(commands.Cog):
         if member == self.bot.user and after.channel is None:
             if member.guild.id in self.players:
                 await self.cleanup_player(member.guild)
+            if member.guild.id in self.lavalink_current or member.guild.id in self.lavalink_queues:
+                self.lavalink_queues.pop(member.guild.id, None)
+                self.lavalink_current.pop(member.guild.id, None)
 
 
 async def setup(bot):
