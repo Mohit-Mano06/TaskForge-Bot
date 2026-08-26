@@ -21,15 +21,6 @@
     "work_min": 100,
     "work_max": 400,
     "work_xp": 20,
-    "work_answer_timeout_seconds": 45,
-    "work_roles": {
-      "developer": { "label": "Developer", "min": 100, "max": 400 },
-      "chef": { "label": "Chef", "min": 100, "max": 350 },
-      "detective": { "label": "Detective", "min": 120, "max": 450 },
-      "miner": { "label": "Miner", "min": 90, "max": 320 },
-      "dj": { "label": "DJ", "min": 100, "max": 380 },
-      "gamer": { "label": "Gamer", "min": 100, "max": 400 }
-    },
     "event_cooldown_seconds": 7200,
     "prestige_level": 50,
     "prestige_reward": 5000

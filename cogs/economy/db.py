@@ -49,8 +49,6 @@ async def ensure_economy_schema(pool: asyncpg.Pool):
             );
             ALTER TABLE public.economy_users
                 ADD COLUMN IF NOT EXISTS prestige integer NOT NULL DEFAULT 0;
-            ALTER TABLE public.economy_users
-                ADD COLUMN IF NOT EXISTS job text;
             """
         )
 
@@ -152,18 +150,6 @@ async def update_balances(
 
             return dict(updated_row)
 
-
-async def set_user_job(pool, user_id, guild_id, job):
-    """Persist a user's selected work role for this guild."""
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "UPDATE public.economy_users SET job = $3, updated_at = NOW() "
-            "WHERE user_id = $1 AND guild_id = $2 RETURNING *",
-            str(user_id), str(guild_id), job
-        )
-        if not row:
-            raise ValueError("Economy profile not found.")
-        return dict(row)
 
 async def grant_starter_bonus(
     pool: asyncpg.Pool,

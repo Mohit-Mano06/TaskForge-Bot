@@ -92,8 +92,7 @@ All commands use the `$` prefix.
 - `$buy <item_id> [quantity]`: Purchase an item.
 - `$sell <item_id> [quantity]`: Sell an item.
 - `$daily`: Claim your daily reward.
-- `$work`: Work your selected job; first use shows available jobs.
-- `$work <role>`: Select or switch jobs and answer an easy role question for a payout.
+- `$work`: Complete a cooldowned job for coins and XP.
 - `$reset_economy`: (Admin only) Reset economy data.
 
 ### 🎁 Giveaway

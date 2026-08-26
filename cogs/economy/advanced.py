@@ -13,7 +13,6 @@ class AdvancedEconomy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.event_cooldown = 0.0
-        self.work_cooldowns = {}
         self.config = self._load_config()
 
     def _load_config(self):
@@ -22,15 +21,6 @@ class AdvancedEconomy(commands.Cog):
             "work_min": 100,
             "work_max": 400,
             "work_xp": 20,
-            "work_answer_timeout_seconds": 45,
-            "work_roles": {
-                "developer": {"label": "Developer", "min": 100, "max": 400},
-                "chef": {"label": "Chef", "min": 100, "max": 350},
-                "detective": {"label": "Detective", "min": 120, "max": 450},
-                "miner": {"label": "Miner", "min": 90, "max": 320},
-                "dj": {"label": "DJ", "min": 100, "max": 380},
-                "gamer": {"label": "Gamer", "min": 100, "max": 400},
-            },
             "event_cooldown_seconds": 7200,
             "prestige_level": 50,
             "prestige_reward": 5000,
@@ -145,103 +135,18 @@ class AdvancedEconomy(commands.Cog):
             color=discord.Color.gold(),
         ))
 
-    def _role_choices(self):
-        return self.config.get("work_roles", {})
-
-    async def _generate_work_question(self, role):
-        fallback_questions = {
-            "developer": ("What keyword defines a function in Python?", "def"),
-            "chef": ("What kitchen tool is commonly used to cut vegetables?", "knife"),
-            "detective": ("What do detectives collect from a crime scene as evidence?", "clues"),
-            "miner": ("What valuable material is commonly mined from the ground?", "ore"),
-            "dj": ("What device does a DJ use to play and mix music?", "mixer"),
-            "gamer": ("What device do most PC gamers use to control movement?", "keyboard"),
-        }
-        fallback = fallback_questions.get(role, ("What is 2 + 2?", "4"))
-        client = getattr(self.bot, "mistral_client", None)
-        if client is None:
-            return fallback
-        prompt = (
-            f"Create one easy beginner question for a Discord economy game role: {role}. "
-            "Return exactly two lines: QUESTION: <question> and ANSWER: <short answer>. "
-            "Do not use markdown, multiple answers, or trick questions."
-        )
-        try:
-            response = await client.chat.complete_async(
-                model="mistral-small-latest",
-                messages=[{"role": "user", "content": prompt}],
-            )
-            content = response.choices[0].message.content.strip()
-            question_match = re.search(r"QUESTION:\s*(.+)", content, re.IGNORECASE)
-            answer_match = re.search(r"ANSWER:\s*(.+)", content, re.IGNORECASE)
-            if question_match and answer_match:
-                return question_match.group(1).strip(), answer_match.group(1).strip()
-        except Exception as error:
-            print(f"Work question generation failed: {error}")
-        return fallback
-
     @commands.command(name="work")
-    async def work(self, ctx, role: str | None = None):
+    async def work(self, ctx):
         """Answer an easy role question for a variable work payout."""
         if not self._ready():
             await ctx.send("❌ PostgreSQL database connection is not configured/available.")
             return
-        roles = self._role_choices()
-        profile = await self._profile(ctx)
-        if role is None:
-            role = profile.get("job")
-        if role is None:
-            role_lines = [f"`{role_id}` - {role_data.get('label', role_id.title())}" for role_id, role_data in roles.items()]
-            await ctx.send("💼 Choose your first job with `$work <role>`:\n" + "\n".join(role_lines))
-            return
-        role = role.lower().replace(" ", "_")
-        if role not in roles:
-            await ctx.send(f"❌ Unknown role. Choose: {', '.join(roles)}")
-            return
-        if profile.get("job") != role:
-            await db.set_user_job(self.bot.db_pool, ctx.author.id, ctx.guild.id, role)
-            await ctx.send(f"✅ You are now working as a **{roles[role].get('label', role.title())}**.")
         now = time.time()
-        remaining = self.work_cooldowns.get((ctx.guild.id, ctx.author.id), 0) - now
-        if remaining > 0:
-            await ctx.send(f"⏳ You can work again in {int(remaining // 60) + 1} minutes.")
-            return
-        self.work_cooldowns[(ctx.guild.id, ctx.author.id)] = now + self.config["work_cooldown_seconds"]
-        question, expected_answer = await self._generate_work_question(role)
-        await ctx.send(
-            f"💼 **{roles[role].get('label', role.title())} job**\n{question}\n"
-            f"Reply within {self.config['work_answer_timeout_seconds']} seconds."
-        )
-
-        def answer_check(message):
-            return message.author == ctx.author and message.channel == ctx.channel
-
-        try:
-            answer = await self.bot.wait_for(
-                "message", check=answer_check,
-                timeout=self.config["work_answer_timeout_seconds"]
-            )
-        except TimeoutError:
-            await ctx.send("⌛ Time's up. No payment was awarded.")
-            return
-
-        normalized_answer = re.sub(r"[^a-z0-9 ]", "", answer.content.lower()).strip()
-        normalized_expected = re.sub(r"[^a-z0-9 ]", "", expected_answer.lower()).strip()
-        answer_words = set(normalized_answer.split())
-        expected_words = set(normalized_expected.split())
-        correct = normalized_answer == normalized_expected or bool(answer_words & expected_words)
-        role_config = roles[role]
-        if correct:
-            reward = random.randint(int(role_config.get("min", self.config["work_min"])), int(role_config.get("max", self.config["work_max"])))
-            xp_reward = self.config["work_xp"]
-            result = f"✅ Correct! You earned 🪙 `{reward:,}` and ✨ `{xp_reward}` XP."
-        else:
-            reward = 0
-            xp_reward = max(1, self.config["work_xp"] // 4)
-            result = f"❌ Not quite. The answer was `{expected_answer}`. You earned ✨ `{xp_reward}` XP."
-        await db.update_balances(self.bot.db_pool, ctx.author.id, ctx.guild.id, reward, 0, "WORK", f"Completed {role} job")
-        await db.update_xp(self.bot.db_pool, ctx.author.id, ctx.guild.id, xp_reward)
-        await ctx.send(result)
+        reward = random.randint(self.config["work_min"], self.config["work_max"])
+        await self._profile(ctx)
+        await db.update_balances(self.bot.db_pool, ctx.author.id, ctx.guild.id, reward, 0, "WORK", "Completed a job")
+        await db.update_xp(self.bot.db_pool, ctx.author.id, ctx.guild.id, self.config["work_xp"])
+        await ctx.send(f"💼 You completed a job and earned 🪙 `{reward:,}` plus ✨ `{self.config['work_xp']}` XP.")
 
     @commands.command(name="event")
     async def event(self, ctx):
