@@ -3,6 +3,8 @@ from discord.ext import commands
 import asyncio
 import yt_dlp
 import os
+import json
+import wavelink
 
 
 # FFmpeg: auto-detect system binary (Linux/Ubuntu) or local exe (Windows)
@@ -166,6 +168,42 @@ class MusicPlayer(commands.Cog):
             self.players[ctx.guild.id] = player
         return player
 
+    @staticmethod
+    def _lavalink_enabled():
+        configured_backend = os.getenv("MUSIC_BACKEND")
+        if not configured_backend:
+            try:
+                with open("data/music_config.json", "r", encoding="utf-8") as file:
+                    configured_backend = json.load(file).get("backend", "ytdlp")
+            except (OSError, json.JSONDecodeError):
+                configured_backend = "ytdlp"
+        return configured_backend.strip().lower() == "lavalink"
+
+    async def _play_lavalink(self, ctx, search):
+        if not getattr(self.bot, "lavalink_connected", False):
+            return await ctx.send("❌ Lavalink is not connected. Set `MUSIC_BACKEND=ytdlp` or start Lavalink.")
+
+        channel = ctx.author.voice.channel
+        voice_client = ctx.voice_client
+        if voice_client and not isinstance(voice_client, wavelink.Player):
+            await voice_client.disconnect(force=True)
+            voice_client = None
+        if voice_client is None:
+            voice_client = await channel.connect(cls=wavelink.Player)
+        elif not voice_client.connected:
+            await voice_client.connect(channel)
+        elif voice_client.channel != channel:
+            await voice_client.move_to(channel)
+
+        async with ctx.typing():
+            tracks = await wavelink.Playable.search(search, source=wavelink.TrackSource.YouTube)
+            if not tracks:
+                return await ctx.send("❌ Lavalink could not find a playable track for that query.")
+            track = tracks[0]
+            await voice_client.play(track)
+
+        await ctx.send(f"✅ Now playing: `{track.title}`")
+
     async def cleanup_player(self, guild):
         """Cleanup a single guild's player."""
         try:
@@ -180,6 +218,13 @@ class MusicPlayer(commands.Cog):
         """Streams from a query (YouTube search or URL)."""
         if not ctx.author.voice:
             return await ctx.send("❌ You must be in a voice channel to play music!")
+
+        if self._lavalink_enabled():
+            try:
+                return await self._play_lavalink(ctx, search)
+            except Exception as e:
+                print(f"[Lavalink Error] Play failed: {e}")
+                return await ctx.send(f"❌ Lavalink could not play that track: `{e}`")
 
         player = self.get_player(ctx)
 
@@ -232,10 +277,23 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(name='stop', help='Stops music and leaves the VC')
     async def stop(self, ctx):
+        if self._lavalink_enabled() and isinstance(ctx.voice_client, wavelink.Player):
+            await ctx.voice_client.stop()
+            await ctx.voice_client.disconnect()
+            return await ctx.send("⏹️ Stopped and disconnected.")
         player = self.get_player(ctx)
         if player.vc:
             await self.cleanup_player(ctx.guild)
             await ctx.send("⏹️ Stopped and disconnected.")
+
+    @commands.command(name='disconnect', aliases=['leave'], help='Leaves the voice channel')
+    async def disconnect(self, ctx):
+        if isinstance(ctx.voice_client, wavelink.Player):
+            await ctx.voice_client.disconnect()
+            return await ctx.send("👋 Disconnected from the voice channel.")
+        if ctx.voice_client:
+            await self.cleanup_player(ctx.guild)
+            await ctx.send("👋 Disconnected from the voice channel.")
 
     @commands.command(name='queue', help='Shows the current music queue')
     async def queue_info(self, ctx):

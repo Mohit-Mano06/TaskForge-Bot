@@ -82,6 +82,16 @@ All commands use the `$` prefix.
 - `$queue`: Show the queue.
 - `$clear` / `$stop`: Clear or stop playback.
 
+Music backend selection is configured in `data/music_config.json`:
+
+```json
+{
+  "backend": "ytdlp"
+}
+```
+
+Set `backend` to `lavalink` to test Lavalink playback. The optional `MUSIC_BACKEND` environment variable overrides this file. Lavalink connection credentials remain in `.env`.
+
 ### 💰 Economy
 
 - `$balance [member]` / `$bal`: View wallet, bank, level, and XP.

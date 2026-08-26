@@ -14,6 +14,7 @@ from mistralai.client import Mistral
 
 import database
 import asyncpg
+import wavelink
 from logger import send_log
 from bot_logger import log_print, RICH_ENABLED, rich_terminal
 from cogs.admin.config import OWNER_IDS, DEV_GUILD_ID
@@ -79,9 +80,23 @@ class TaskForgeBot(commands.Bot):
             log_print("Closing database pool...")
             await self.db_pool.close()
 
+        if getattr(self, 'lavalink_connected', False):
+            log_print("Closing Lavalink connection...")
+            await wavelink.Pool.close()
+
         await super().close()
 
 bot = TaskForgeBot()
+
+@bot.listen("on_wavelink_node_ready")
+async def on_lavalink_node_ready(payload):
+    bot.lavalink_connected = True
+    log_print(f"✅ Lavalink node ready: {payload.node.identifier}", "success")
+
+@bot.listen("on_wavelink_node_disconnected")
+async def on_lavalink_node_disconnected(payload):
+    bot.lavalink_connected = False
+    log_print(f"⚠️ Lavalink node disconnected: {payload.node.identifier}", "warning")
 
 @bot.event
 async def on_ready():
@@ -129,6 +144,25 @@ async def on_ready():
 
 @bot.event
 async def setup_hook():
+    lavalink_host = os.getenv("LAVALINK_HOST")
+    lavalink_port = os.getenv("LAVALINK_PORT", "2333")
+    lavalink_password = os.getenv("LAVALINK_PASSWORD")
+    bot.lavalink_connected = False
+    if lavalink_host and lavalink_password:
+        try:
+            node = wavelink.Node(
+                uri=f"http://{lavalink_host}:{lavalink_port}",
+                password=lavalink_password,
+            )
+            log_print(f"Connecting to Lavalink at {lavalink_host}:{lavalink_port}...")
+            await wavelink.Pool.connect(nodes=[node], client=bot)
+            bot.lavalink_connected = True
+            log_print("✅ Lavalink node connected", "success")
+        except Exception as e:
+            log_print(f"⚠️ Lavalink unavailable; legacy music remains active: {e}", "warning")
+    else:
+        log_print("⚠️ Lavalink environment is incomplete; skipping Lavalink connection.", "warning")
+
     # Initialize database pool
     db_url = os.getenv("DATABASE_URL")
     if db_url:
