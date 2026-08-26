@@ -7,6 +7,7 @@ mistralai
 psutil
 aiofiles
 asyncpg
+wavelink 
 
 #PyNaCl
 rich
