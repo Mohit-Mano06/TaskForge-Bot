@@ -228,7 +228,7 @@ class AdvancedEconomy(commands.Cog):
             return
         self.rob_cooldowns[key] = time.time() + self.config["rob_cooldown_seconds"]
 
-    @commands.group(name="pets", invoke_without_command=True)
+    @commands.group(name="pets", aliases=["pet"], invoke_without_command=True)
     async def pets(self, ctx):
         """Show owned pets or the available pet actions."""
         if not self._ready():

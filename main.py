@@ -200,7 +200,40 @@ async def on_command_error(ctx, error):
         msg = str(original)
         await ctx.send(f"🛠️ **{msg}**\nSome features may be temporarily unavailable. Please try again later.")
         return
-    if isinstance(error, commands.CommandNotFound):
+    if isinstance(original, commands.CommandNotFound):
+        return
+    if isinstance(original, commands.MissingRequiredArgument):
+        command = ctx.command
+        if command is None:
+            return
+        usage = command.usage or f"{ctx.prefix}{command.qualified_name} {command.signature}".strip()
+        await ctx.send(
+            f"❌ Missing `{original.param.name}`.\n"
+            f"Try: `{usage}`\n"
+            f"Type `{ctx.prefix}help {command.qualified_name}` for more examples."
+        )
+        return
+    if isinstance(original, commands.BadArgument):
+        command = ctx.command
+        if command is None:
+            return
+        usage = command.usage or f"{ctx.prefix}{command.qualified_name} {command.signature}".strip()
+        await ctx.send(
+            f"❌ I could not understand that argument.\n"
+            f"Try: `{usage}`\n"
+            f"Type `{ctx.prefix}help {command.qualified_name}` for more details."
+        )
+        return
+    if isinstance(original, commands.TooManyArguments):
+        command = ctx.command
+        if command is None:
+            return
+        usage = command.usage or f"{ctx.prefix}{command.qualified_name} {command.signature}".strip()
+        await ctx.send(
+            f"❌ Too many arguments were provided.\n"
+            f"Try: `{usage}`\n"
+            f"Type `{ctx.prefix}help {command.qualified_name}` for more details."
+        )
         return
     if isinstance(error, commands.CheckFailure):
         return
