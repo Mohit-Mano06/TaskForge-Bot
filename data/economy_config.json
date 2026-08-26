@@ -22,6 +22,28 @@
     "work_max": 400,
     "work_xp": 20,
     "event_cooldown_seconds": 7200,
+    "event_rewards": {
+      "treasure": {
+        "label": "A treasure chest appeared",
+        "min": 100,
+        "max": 500
+      },
+      "meteor": {
+        "label": "A meteor shower scattered star coins",
+        "min": 150,
+        "max": 700
+      },
+      "bounty": {
+        "label": "A server bounty was posted",
+        "min": 75,
+        "max": 350
+      },
+      "jackpot": {
+        "label": "The TaskForge jackpot opened",
+        "min": 250,
+        "max": 1000
+      }
+    },
     "prestige_level": 50,
     "prestige_reward": 5000
   },

@@ -47,6 +47,34 @@ async def ensure_economy_schema(pool: asyncpg.Pool):
                 unlocked_at timestamptz NOT NULL DEFAULT now(),
                 PRIMARY KEY (user_id, guild_id, achievement_id)
             );
+            CREATE TABLE IF NOT EXISTS public.economy_pets (
+                pet_id text PRIMARY KEY,
+                name text NOT NULL,
+                description text NOT NULL,
+                emoji text NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS public.economy_user_pets (
+                user_id text NOT NULL,
+                guild_id text NOT NULL,
+                pet_id text NOT NULL REFERENCES public.economy_pets(pet_id),
+                equipped boolean NOT NULL DEFAULT false,
+                adopted_at timestamptz NOT NULL DEFAULT now(),
+                PRIMARY KEY (user_id, guild_id, pet_id)
+            );
+            CREATE TABLE IF NOT EXISTS public.economy_pets (
+                pet_id text PRIMARY KEY,
+                name text NOT NULL,
+                description text NOT NULL,
+                emoji text NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS public.economy_user_pets (
+                user_id text NOT NULL,
+                guild_id text NOT NULL,
+                pet_id text NOT NULL REFERENCES public.economy_pets(pet_id),
+                equipped boolean NOT NULL DEFAULT false,
+                adopted_at timestamptz NOT NULL DEFAULT now(),
+                PRIMARY KEY (user_id, guild_id, pet_id)
+            );
             ALTER TABLE public.economy_users
                 ADD COLUMN IF NOT EXISTS prestige integer NOT NULL DEFAULT 0;
             """
@@ -149,6 +177,133 @@ async def update_balances(
             )
 
             return dict(updated_row)
+
+
+async def gamble(pool, user_id, guild_id, bet, won, multiplier):
+    """Resolve a coin gamble while locking the player's wallet."""
+    user_id, guild_id = str(user_id), str(guild_id)
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT wallet FROM public.economy_users WHERE user_id = $1 AND guild_id = $2 FOR UPDATE",
+                user_id, guild_id
+            )
+            if not row or row["wallet"] < bet:
+                raise ValueError("You do not have enough wallet coins for that bet.")
+            change = bet * multiplier if won else -bet
+            updated = await conn.fetchrow(
+                "UPDATE public.economy_users SET wallet = wallet + $3, updated_at = NOW() "
+                "WHERE user_id = $1 AND guild_id = $2 RETURNING *", user_id, guild_id, change
+            )
+            await conn.execute(
+                "INSERT INTO public.economy_transactions "
+                "(user_id, guild_id, amount, type, description) VALUES ($1, $2, $3, 'GAMBLE', $4)",
+                user_id, guild_id, change, "Won gamble" if won else "Lost gamble"
+            )
+            return dict(updated), change
+
+
+async def rob_user(pool, robber_id, target_id, guild_id, amount, penalty):
+    """Transfer a robbery reward or penalty under deterministic row locks."""
+    robber_id, target_id, guild_id = map(str, (robber_id, target_id, guild_id))
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            rows = await conn.fetch(
+                "SELECT user_id, wallet FROM public.economy_users "
+                "WHERE guild_id = $1 AND user_id = ANY($2::text[]) ORDER BY user_id FOR UPDATE",
+                guild_id, [robber_id, target_id]
+            )
+            wallets = {row["user_id"]: row["wallet"] for row in rows}
+            if robber_id not in wallets or target_id not in wallets:
+                raise ValueError("Both users need an economy profile first.")
+            if wallets[target_id] < amount:
+                raise ValueError("That user does not have enough wallet coins to rob.")
+            if wallets[robber_id] < penalty:
+                raise ValueError("You need more wallet coins to cover the robbery risk.")
+            await conn.execute(
+                "UPDATE public.economy_users SET wallet = wallet - $3 WHERE user_id = $1 AND guild_id = $2",
+                target_id, guild_id, amount
+            )
+            await conn.execute(
+                "UPDATE public.economy_users SET wallet = wallet + $3 WHERE user_id = $1 AND guild_id = $2",
+                robber_id, guild_id, amount
+            )
+            if penalty:
+                await conn.execute(
+                    "UPDATE public.economy_users SET wallet = wallet - $3 WHERE user_id = $1 AND guild_id = $2",
+                    robber_id, guild_id, penalty
+                )
+                await conn.execute(
+                    "UPDATE public.economy_users SET wallet = wallet + $3 WHERE user_id = $1 AND guild_id = $2",
+                    target_id, guild_id, penalty
+                )
+            return amount
+
+
+async def adopt_pet(pool, user_id, guild_id, pet_id, name, description, emoji, cost):
+    """Buy and equip a pet once, recording the purchase."""
+    user_id, guild_id = str(user_id), str(guild_id)
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                "INSERT INTO public.economy_pets (pet_id, name, description, emoji) VALUES ($1, $2, $3, $4) "
+                "ON CONFLICT (pet_id) DO NOTHING", pet_id, name, description, emoji
+            )
+            owned = await conn.fetchval(
+                "SELECT EXISTS (SELECT 1 FROM public.economy_user_pets WHERE user_id = $1 AND guild_id = $2 AND pet_id = $3)",
+                user_id, guild_id, pet_id
+            )
+            if owned:
+                raise ValueError("You already own that pet.")
+            updated = await conn.fetchrow(
+                "UPDATE public.economy_users SET wallet = wallet - $3, updated_at = NOW() "
+                "WHERE user_id = $1 AND guild_id = $2 AND wallet >= $3 RETURNING *", user_id, guild_id, cost
+            )
+            if not updated:
+                raise ValueError("You do not have enough wallet coins for that pet.")
+            await conn.execute(
+                "INSERT INTO public.economy_user_pets (user_id, guild_id, pet_id, equipped) VALUES ($1, $2, $3, true)",
+                user_id, guild_id, pet_id
+            )
+            await conn.execute(
+                "UPDATE public.economy_user_pets SET equipped = false WHERE user_id = $1 AND guild_id = $2 AND pet_id <> $3",
+                user_id, guild_id, pet_id
+            )
+            await conn.execute(
+                "INSERT INTO public.economy_transactions "
+                "(user_id, guild_id, amount, type, description) VALUES ($1, $2, $3, 'PET_PURCHASE', $4)",
+                user_id, guild_id, -cost, f"Adopted {name}"
+            )
+
+
+async def get_pets(pool, user_id, guild_id):
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT p.pet_id, p.name, p.description, p.emoji, up.equipped "
+            "FROM public.economy_user_pets up JOIN public.economy_pets p ON p.pet_id = up.pet_id "
+            "WHERE up.user_id = $1 AND up.guild_id = $2 ORDER BY up.adopted_at",
+            str(user_id), str(guild_id)
+        )
+        return [dict(row) for row in rows]
+
+
+async def equip_pet(pool, user_id, guild_id, pet_id):
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            exists = await conn.fetchval(
+                "SELECT EXISTS (SELECT 1 FROM public.economy_user_pets WHERE user_id = $1 AND guild_id = $2 AND pet_id = $3)",
+                str(user_id), str(guild_id), pet_id
+            )
+            if not exists:
+                raise ValueError("You do not own that pet.")
+            await conn.execute(
+                "UPDATE public.economy_user_pets SET equipped = false WHERE user_id = $1 AND guild_id = $2",
+                str(user_id), str(guild_id)
+            )
+            await conn.execute(
+                "UPDATE public.economy_user_pets SET equipped = true WHERE user_id = $1 AND guild_id = $2 AND pet_id = $3",
+                str(user_id), str(guild_id), pet_id
+            )
 
 
 async def grant_starter_bonus(
@@ -390,6 +545,7 @@ async def reset_economy_data(pool: asyncpg.Pool):
         async with conn.transaction():
             # Order matters due to foreign keys
             await conn.execute("DELETE FROM public.economy_user_achievements")
+            await conn.execute("DELETE FROM public.economy_user_pets")
             await conn.execute("DELETE FROM public.economy_inventory")
             await conn.execute("DELETE FROM public.economy_transactions")
             await conn.execute("DELETE FROM public.economy_users")

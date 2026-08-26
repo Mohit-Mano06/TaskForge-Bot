@@ -93,6 +93,12 @@ All commands use the `$` prefix.
 - `$sell <item_id> [quantity]`: Sell an item.
 - `$daily`: Claim your daily reward.
 - `$work`: Complete a cooldowned job for coins and XP.
+- `$gamble <amount>` / `$bet`: Risk wallet coins on a 50/50 double-or-lose bet.
+- `$rob @user`: Attempt to steal wallet coins with a cooldown and failure penalty.
+- `$pets`: View owned pets.
+- `$pets adopt <pet>`: Adopt a pet using wallet coins.
+- `$pets equip <pet>`: Equip an owned pet.
+- `$event`: Trigger a cooldowned random server event.
 - `$reset_economy`: (Admin only) Reset economy data.
 
 ### 🎁 Giveaway

@@ -13,6 +13,8 @@ class AdvancedEconomy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.event_cooldown = 0.0
+        self.gamble_cooldowns = {}
+        self.rob_cooldowns = {}
         self.config = self._load_config()
 
     def _load_config(self):
@@ -22,6 +24,23 @@ class AdvancedEconomy(commands.Cog):
             "work_max": 400,
             "work_xp": 20,
             "event_cooldown_seconds": 7200,
+            "event_rewards": {
+                "treasure": {"label": "A treasure chest appeared", "min": 100, "max": 500},
+                "meteor": {"label": "A meteor shower scattered star coins", "min": 150, "max": 700},
+                "bounty": {"label": "A server bounty was posted", "min": 75, "max": 350},
+                "jackpot": {"label": "The TaskForge jackpot opened", "min": 250, "max": 1000},
+            },
+            "gamble_cooldown_seconds": 30,
+            "rob_cooldown_seconds": 3600,
+            "rob_success_chance": 0.45,
+            "rob_max_percent": 0.25,
+            "rob_penalty_percent": 0.10,
+            "pets": {
+                "cat": {"name": "Cat", "emoji": "🐱", "description": "A curious companion.", "cost": 2500},
+                "dog": {"name": "Dog", "emoji": "🐶", "description": "A loyal companion.", "cost": 3000},
+                "fox": {"name": "Fox", "emoji": "🦊", "description": "A clever companion.", "cost": 5000},
+                "dragon": {"name": "Dragon", "emoji": "🐉", "description": "A legendary companion.", "cost": 25000},
+            },
             "prestige_level": 50,
             "prestige_reward": 5000,
         }
@@ -137,16 +156,119 @@ class AdvancedEconomy(commands.Cog):
 
     @commands.command(name="work")
     async def work(self, ctx):
-        """Answer an easy role question for a variable work payout."""
+        """Complete a cooldowned job for coins and XP."""
         if not self._ready():
             await ctx.send("❌ PostgreSQL database connection is not configured/available.")
             return
-        now = time.time()
         reward = random.randint(self.config["work_min"], self.config["work_max"])
         await self._profile(ctx)
         await db.update_balances(self.bot.db_pool, ctx.author.id, ctx.guild.id, reward, 0, "WORK", "Completed a job")
         await db.update_xp(self.bot.db_pool, ctx.author.id, ctx.guild.id, self.config["work_xp"])
         await ctx.send(f"💼 You completed a job and earned 🪙 `{reward:,}` plus ✨ `{self.config['work_xp']}` XP.")
+
+    @commands.command(name="gamble", aliases=["bet"])
+    async def gamble(self, ctx, amount: int):
+        """Risk wallet coins on a 50/50 double-or-lose bet."""
+        if not self._ready():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+        if amount <= 0:
+            await ctx.send("❌ Your bet must be at least 1 coin.")
+            return
+        key = (ctx.guild.id, ctx.author.id)
+        remaining = self.gamble_cooldowns.get(key, 0) - time.time()
+        if remaining > 0:
+            await ctx.send(f"⏳ Try gambling again in {int(remaining) + 1} seconds.")
+            return
+        await self._profile(ctx)
+        won = random.random() < 0.5
+        try:
+            _, change = await db.gamble(self.bot.db_pool, ctx.author.id, ctx.guild.id, amount, won, 2 if won else 0)
+        except ValueError as error:
+            await ctx.send(f"❌ {error}")
+            return
+        self.gamble_cooldowns[key] = time.time() + self.config["gamble_cooldown_seconds"]
+        if won:
+            await ctx.send(f"🎰 You won! Your wallet gained 🪙 `{change:,}`.")
+        else:
+            await ctx.send(f"🎰 You lost 🪙 `{amount:,}`. Better luck next time.")
+
+    @commands.command(name="rob")
+    async def rob(self, ctx, target: discord.Member):
+        """Attempt to steal a limited amount from another user's wallet."""
+        if not self._ready():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+        if target.bot or target.id == ctx.author.id:
+            await ctx.send("❌ Choose another human member to rob.")
+            return
+        key = (ctx.guild.id, ctx.author.id)
+        remaining = self.rob_cooldowns.get(key, 0) - time.time()
+        if remaining > 0:
+            await ctx.send(f"⏳ Try again in {int(remaining // 60) + 1} minutes.")
+            return
+        await self._profile(ctx)
+        target_profile = await db.get_or_create_user(self.bot.db_pool, target.id, ctx.guild.id)
+        target_wallet = target_profile["wallet"]
+        amount = max(1, int(target_wallet * self.config["rob_max_percent"])) if target_wallet else 0
+        penalty = max(1, int(amount * self.config["rob_penalty_percent"])) if amount else 0
+        if amount == 0:
+            await ctx.send("❌ That user's wallet is empty.")
+            return
+        success = random.random() < self.config["rob_success_chance"]
+        try:
+            if success:
+                await db.rob_user(self.bot.db_pool, ctx.author.id, target.id, ctx.guild.id, amount, 0)
+                await ctx.send(f"🕵️ Success! You stole 🪙 `{amount:,}` from {target.mention}.")
+            else:
+                await db.rob_user(self.bot.db_pool, ctx.author.id, target.id, ctx.guild.id, 0, penalty)
+                await ctx.send(f"🚨 You were caught and paid 🪙 `{penalty:,}` to {target.mention}.")
+        except ValueError as error:
+            await ctx.send(f"❌ {error}")
+            return
+        self.rob_cooldowns[key] = time.time() + self.config["rob_cooldown_seconds"]
+
+    @commands.group(name="pets", invoke_without_command=True)
+    async def pets(self, ctx):
+        """Show owned pets or the available pet actions."""
+        if not self._ready():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+        owned = await db.get_pets(self.bot.db_pool, ctx.author.id, ctx.guild.id)
+        if owned:
+            lines = [f"{pet['emoji']} **{pet['name']}** {'(equipped)' if pet['equipped'] else ''}" for pet in owned]
+            await ctx.send("🐾 Your pets:\n" + "\n".join(lines) + "\nUse `$pets adopt <pet>` or `$pets equip <pet>`." )
+            return
+        available = ", ".join(f"{pet_id} ({pet['cost']:,})" for pet_id, pet in self.config["pets"].items())
+        await ctx.send(f"🐾 You have no pets. Adopt one with `$pets adopt <pet>`:\n{available}")
+
+    @pets.command(name="adopt")
+    async def pets_adopt(self, ctx, pet_id: str):
+        if not self._ready():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+        pet_id = pet_id.lower().replace(" ", "_")
+        pet = self.config["pets"].get(pet_id)
+        if not pet:
+            await ctx.send(f"❌ Unknown pet. Choose: {', '.join(self.config['pets'])}")
+            return
+        await self._profile(ctx)
+        try:
+            await db.adopt_pet(self.bot.db_pool, ctx.author.id, ctx.guild.id, pet_id, pet["name"], pet["description"], pet["emoji"], pet["cost"])
+            await ctx.send(f"✅ You adopted {pet['emoji']} **{pet['name']}** for 🪙 `{pet['cost']:,}`.")
+        except ValueError as error:
+            await ctx.send(f"❌ {error}")
+
+    @pets.command(name="equip")
+    async def pets_equip(self, ctx, pet_id: str):
+        if not self._ready():
+            await ctx.send("❌ PostgreSQL database connection is not configured/available.")
+            return
+        try:
+            await db.equip_pet(self.bot.db_pool, ctx.author.id, ctx.guild.id, pet_id.lower().replace(" ", "_"))
+            await ctx.send(f"✅ Your **{pet_id}** is now equipped.")
+        except ValueError as error:
+            await ctx.send(f"❌ {error}")
 
     @commands.command(name="event")
     async def event(self, ctx):
@@ -158,11 +280,12 @@ class AdvancedEconomy(commands.Cog):
         if remaining > 0:
             await ctx.send("⏳ No event is ready yet. Try again later.")
             return
-        reward = random.randint(100, 500)
+        event_id, event = random.choice(list(self.config["event_rewards"].items()))
+        reward = random.randint(event["min"], event["max"])
         self.event_cooldown = time.time() + self.config["event_cooldown_seconds"]
         await self._profile(ctx)
-        await db.update_balances(self.bot.db_pool, ctx.author.id, ctx.guild.id, reward, 0, "RANDOM_EVENT", "Found a random server event")
-        await ctx.send(f"🚨 **TREASURE EVENT!** {ctx.author.mention} found 🪙 `{reward:,}`.")
+        await db.update_balances(self.bot.db_pool, ctx.author.id, ctx.guild.id, reward, 0, "RANDOM_EVENT", f"Participated in {event_id} event")
+        await ctx.send(f"🚨 **{event['label']}!** {ctx.author.mention} found 🪙 `{reward:,}`.")
 
     @commands.command(name="prestige")
     async def prestige(self, ctx):
