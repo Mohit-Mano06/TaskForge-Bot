@@ -16,3 +16,8 @@ LAVALINK_PASSWORD="YOUR_LAVALINK_PASSWORD_HERE"
 
 # R6 Stats API Key (Optional/Retired)
 R6_TOKEN="YOUR_R6_TOKEN_HERE"
+
+# Local Prometheus exporter. Keep this bound to localhost unless protected.
+METRICS_HOST="127.0.0.1"
+METRICS_PORT="9100"
+HEALTH_WATCH_INTERVAL="60"

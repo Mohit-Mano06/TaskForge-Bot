@@ -11,3 +11,5 @@ wavelink>=3.5.2,<4
 
 #PyNaCl
 rich
+aiohttp
+prometheus-client

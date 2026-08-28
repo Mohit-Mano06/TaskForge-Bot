@@ -1,0 +1,18 @@
+// Run Grafana Alloy on the same machine as TaskForge.
+// Provide the three GRAFANA_CLOUD_* values through the service environment.
+
+prometheus.scrape "taskforge" {
+  targets = [{ "__address__" = "127.0.0.1:9100" }]
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROMETHEUS_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_INSTANCE_ID")
+      password = sys.env("GRAFANA_CLOUD_API_TOKEN")
+    }
+  }
+}
