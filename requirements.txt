@@ -4,7 +4,6 @@ urllib3
 yt-dlp
 python-dotenv
 mistralai
-psutil
 aiofiles
 asyncpg
 wavelink>=3.5.2,<4
@@ -12,4 +11,3 @@ wavelink>=3.5.2,<4
 #PyNaCl
 rich
 aiohttp
-prometheus-client

@@ -8,7 +8,6 @@ import discord
 from cogs.monitoring.metrics import collect_health_snapshot
 
 
-
 class System(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -79,7 +78,6 @@ class System(commands.Cog):
         except asyncio.CancelledError:
             return
 
-
     @commands.command(help="Show a full TaskForge health report")
     async def health(self, ctx, action=None):
         """Show health status for the bot and its dependencies."""
@@ -120,6 +118,7 @@ class System(commands.Cog):
             old_task.cancel()
         self.watch_tasks[ctx.guild.id] = asyncio.create_task(self._watch_loop(ctx.guild.id, ctx.channel.id, message.id))
         await ctx.send("Health watch enabled.", delete_after=5)
+
 
 async def setup(bot):
     await bot.add_cog(System(bot))

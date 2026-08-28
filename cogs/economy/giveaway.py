@@ -95,7 +95,13 @@ class GiveawayCog(commands.Cog):
     def _format_ist(self, dt):
         if dt is None:
             return "Not set"
-        return dt.astimezone(IST).strftime("%Y-%m-%d %H:%M IST")
+        return self._as_utc(dt).astimezone(IST).strftime("%Y-%m-%d %H:%M IST")
+
+    @staticmethod
+    def _as_utc(dt):
+        if dt.tzinfo is None or dt.utcoffset() is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
 
     def _entry_duration(self):
         if GIVEAWAY_USE_TEST_TIMINGS:
@@ -282,13 +288,15 @@ class GiveawayCog(commands.Cog):
             await channel.send(final_message)
 
     def _schedule_giveaway_tasks(self, guild_id, starts_at, closes_at):
+        closes_at = self._as_utc(closes_at)
+        now = datetime.now(timezone.utc)
         # Reminder before close
-        reminder_delay = (closes_at - datetime.now(timezone.utc) - self._reminder_duration()).total_seconds()
+        reminder_delay = (closes_at - now - self._reminder_duration()).total_seconds()
         if reminder_delay > 0:
             reminder_task = asyncio.create_task(self._send_reminder(guild_id, reminder_delay))
             self._tasks[f"{guild_id}:reminder"] = reminder_task
 
-        close_delay = max(0, (closes_at - datetime.now(timezone.utc)).total_seconds())
+        close_delay = max(0, (closes_at - now).total_seconds())
         close_task = asyncio.create_task(self._close_after_delay(guild_id, close_delay))
         self._tasks[f"{guild_id}:close"] = close_task
 
@@ -406,8 +414,8 @@ class GiveawayCog(commands.Cog):
             await ctx.send("📊 No giveaway is currently running.")
             return
 
-        started_at = datetime.fromisoformat(state["started_at"]) if state.get("started_at") else None
-        closes_at = datetime.fromisoformat(state["entry_closes_at"]) if state.get("entry_closes_at") else None
+        started_at = self._as_utc(datetime.fromisoformat(state["started_at"])) if state.get("started_at") else None
+        closes_at = self._as_utc(datetime.fromisoformat(state["entry_closes_at"])) if state.get("entry_closes_at") else None
 
         embed = discord.Embed(
             title="🎁 Live Giveaway",

@@ -6,11 +6,6 @@ import os
 import time
 import random
 from datetime import datetime, timezone
-from cogs.monitoring.metrics import (
-    taskforge_economy_transactions_total,
-    taskforge_vc_active_sessions,
-    taskforge_vc_reward_coins_total,
-)
 from cogs.admin.config import user_is_owner
 
 class Economy(commands.Cog):
@@ -142,7 +137,6 @@ class Economy(commands.Cog):
                 tx_type="DEPOSIT",
                 tx_desc=f"Deposited {dep_amount} coins to bank"
             )
-            taskforge_economy_transactions_total.labels(type="deposit").inc()
 
             await ctx.send(f"✅ Deposited 🪙 `{dep_amount:,}` coins into your bank!")
         except Exception as e:
@@ -194,7 +188,6 @@ class Economy(commands.Cog):
                 tx_type="WITHDRAW",
                 tx_desc=f"Withdrew {with_amount} coins from bank"
             )
-            taskforge_economy_transactions_total.labels(type="withdraw").inc()
 
             await ctx.send(f"✅ Withdrew 🪙 `{with_amount:,}` coins from your bank!")
         except Exception as e:
@@ -521,7 +514,6 @@ class Economy(commands.Cog):
                 tx_desc=f"Bought {quantity}x {item.get('name')}"
             )
             await db.add_item_to_inventory(self.bot.db_pool, ctx.author.id, ctx.guild.id, item_key, quantity)
-            taskforge_economy_transactions_total.labels(type="purchase").inc()
             await ctx.send(f"✅ Purchased {quantity}x {item.get('name')} for {currency} `{total_cost:,}`.")
         except Exception as e:
             await ctx.send(f"❌ Failed to complete purchase: {e}")
@@ -568,7 +560,6 @@ class Economy(commands.Cog):
                 tx_type="ITEM_SALE",
                 tx_desc=f"Sold {quantity}x {item.get('name')}"
             )
-            taskforge_economy_transactions_total.labels(type="sale").inc()
             await ctx.send(f"✅ Sold {quantity}x {item.get('name')} for {currency} `{total_gain:,}`.")
         except ValueError as e:
             await ctx.send(f"❌ {e}")
@@ -691,7 +682,6 @@ class Economy(commands.Cog):
                 xp,
                 streak_increment
             )
-            taskforge_economy_transactions_total.labels(type="daily_reward").inc()
             
             # Update XP separately using existing function
             await db.update_xp(self.bot.db_pool, ctx.author.id, ctx.guild.id, xp)
@@ -759,7 +749,6 @@ class Economy(commands.Cog):
                 coin_reward, 0, 
                 "TEXT_ACTIVITY", "Earned from text activity"
             )
-            taskforge_economy_transactions_total.labels(type="text_reward").inc()
             await db.update_xp(
                 self.bot.db_pool,
                 message.author.id,
@@ -800,13 +789,11 @@ class Economy(commands.Cog):
                     session_key = (guild_id, str(m.id))
                     if session_key not in self.vc_sessions:
                         self.vc_sessions[session_key] = time.time()
-                taskforge_vc_active_sessions.set(len(self.vc_sessions))
 
     async def _end_vc_session(self, guild_id, member):
         session_key = (str(guild_id), str(member.id))
         if session_key in self.vc_sessions:
             join_time = self.vc_sessions.pop(session_key)
-            taskforge_vc_active_sessions.set(len(self.vc_sessions))
             duration_minutes = (time.time() - join_time) / 60.0
             
             cfg = self.config.get("vc_activity", {})
@@ -826,8 +813,6 @@ class Economy(commands.Cog):
                         coin_reward, 0, 
                         "VC_ACTIVITY", f"Earned from VC activity ({duration_minutes:.1f} mins)"
                     )
-                    taskforge_economy_transactions_total.labels(type="vc_reward").inc()
-                    taskforge_vc_reward_coins_total.inc(coin_reward)
                     await db.update_xp(
                         self.bot.db_pool,
                         member.id,

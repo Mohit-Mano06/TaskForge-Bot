@@ -5,28 +5,28 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 
 class MetricsServer:
-	def __init__(self):
-		self.host = os.getenv("METRICS_HOST", "127.0.0.1")
-		self.port = int(os.getenv("METRICS_PORT", "9100"))
-		self.runner = None
+        def __init__(self):
+                self.host = os.getenv("METRICS_HOST", "127.0.0.1")
+                self.port = int(os.getenv("METRICS_PORT", "9100"))
+                self.runner = None
 
-	async def start(self):
-		if self.runner is not None:
-			return
-		app = web.Application()
-		app.router.add_get("/metrics", self.metrics)
-		app.router.add_get("/healthz", self.healthz)
-		self.runner = web.AppRunner(app)
-		await self.runner.setup()
-		await web.TCPSite(self.runner, self.host, self.port).start()
+        async def start(self):
+                if self.runner is not None:
+                        return
+                app = web.Application()
+                app.router.add_get("/metrics", self.metrics)
+                app.router.add_get("/healthz", self.healthz)
+                self.runner = web.AppRunner(app)
+                await self.runner.setup()
+                await web.TCPSite(self.runner, self.host, self.port).start()
 
-	async def stop(self):
-		if self.runner is not None:
-			await self.runner.cleanup()
-			self.runner = None
+        async def stop(self):
+                if self.runner is not None:
+                        await self.runner.cleanup()
+                        self.runner = None
 
-	async def metrics(self, request):
-		return web.Response(body=generate_latest(), content_type=CONTENT_TYPE_LATEST.split(";")[0])
+        async def metrics(self, request):
+                return web.Response(body=generate_latest(), content_type=CONTENT_TYPE_LATEST.split(";")[0])
 
-	async def healthz(self, request):
-		return web.Response(text="ok\n")
+        async def healthz(self, request):
+                return web.Response(text="ok\n")

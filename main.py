@@ -17,8 +17,6 @@ import asyncpg
 import wavelink
 from logger import send_log
 from bot_logger import log_print, RICH_ENABLED, rich_terminal
-from cogs.monitoring.metrics import taskforge_commands_total, taskforge_command_duration_seconds, taskforge_errors_total
-from cogs.monitoring.server import MetricsServer
 from cogs.admin.config import OWNER_IDS, DEV_GUILD_ID
 from cogs.economy import db as economy_db
 
@@ -61,12 +59,9 @@ class TaskForgeBot(commands.Bot):
         )
         self.mistral_client = Mistral(api_key=MISTRAL_API_KEY)
         self.process_start_time = time.time()
-        self.metrics_server = MetricsServer()
-        self.command_start_times = {}
 
     async def close(self):
         log_print("Shutting down bot...")
-        await self.metrics_server.stop()
         channel = self.get_channel(ALLOWED_CHANNEL_ID)
         if channel:
             try:
@@ -150,9 +145,6 @@ async def on_ready():
 
 @bot.event
 async def setup_hook():
-    await bot.metrics_server.start()
-    log_print("Metrics server listening on configured local address", "success")
-
     lavalink_host = os.getenv("LAVALINK_HOST")
     lavalink_port = os.getenv("LAVALINK_PORT", "2333")
     lavalink_password = os.getenv("LAVALINK_PASSWORD")
@@ -203,7 +195,7 @@ async def setup_hook():
         "cogs.music.player", "cogs.admin.moderation",
         "cogs.admin.maintenance",
         "cogs.social.confession", "cogs.general.announcement", "cogs.general.guide",
-        "cogs.music.dj", "cogs.ai.assistant", "cogs.ai.insights", "cogs.system", "cogs.general.status",
+        "cogs.music.dj", "cogs.ai.assistant", "cogs.ai.insights", "cogs.general.status",
         "cogs.leaderboard.leaderboard_tracker",
         "cogs.leaderboard.leaderboard_commands",
         "cogs.economy.economy_cog",
@@ -238,11 +230,6 @@ async def check_maintenance(ctx):
 
 @bot.event
 async def on_command_error(ctx, error):
-    if ctx.command:
-        taskforge_commands_total.labels(command=ctx.command.qualified_name, status="failure").inc()
-        started = bot.command_start_times.pop(ctx.message.id, None)
-        if started is not None:
-            taskforge_command_duration_seconds.labels(command=ctx.command.qualified_name).observe(time.perf_counter() - started)
     original = getattr(error, "original", error)
     if isinstance(original, MaintenanceModeActive):
         msg = str(original)
@@ -286,21 +273,7 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
         return
     traceback.print_exception(type(error), error, error.__traceback__)
-    taskforge_errors_total.labels(component="command").inc()
     raise error
-
-@bot.listen("on_command")
-async def on_command_start(ctx):
-    if ctx.command:
-        bot.command_start_times[ctx.message.id] = time.perf_counter()
-
-@bot.listen("on_command_completion")
-async def on_command_complete(ctx):
-    if ctx.command:
-        taskforge_commands_total.labels(command=ctx.command.qualified_name, status="success").inc()
-        started = bot.command_start_times.pop(ctx.message.id, None)
-        if started is not None:
-            taskforge_command_duration_seconds.labels(command=ctx.command.qualified_name).observe(time.perf_counter() - started)
 
 @bot.command(name="sync", hidden=True)
 @commands.is_owner()

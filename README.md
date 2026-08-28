@@ -170,23 +170,6 @@ Set `backend` to `lavalink` to test Lavalink playback. The optional `MUSIC_BACKE
 
 ## ⚙️ Installation & Setup
 
-### Grafana Cloud Monitoring
-
-TaskForge exposes Prometheus metrics locally at `http://127.0.0.1:9100/metrics`.
-Install the dependencies from `requirements.txt`, copy the monitoring values from
-`config_example.py` into `.env`, and start the bot. Keep port 9100 private.
-
-For Grafana Cloud Free, install Grafana Alloy on the same machine and use
-`cogs/prometheus/alloy.alloy`. Set these environment variables in the Alloy service:
-
-- `GRAFANA_CLOUD_PROMETHEUS_URL`: Grafana Cloud Prometheus remote-write URL
-- `GRAFANA_CLOUD_INSTANCE_ID`: Grafana Cloud Prometheus username / instance ID
-- `GRAFANA_CLOUD_API_TOKEN`: scoped Grafana Cloud metrics write token
-
-Verify the local endpoint with `curl http://127.0.0.1:9100/healthz` and
-`curl http://127.0.0.1:9100/metrics`. Import
-`cogs/prometheus/taskforge-dashboard.json` into Grafana Cloud for the starter dashboard.
-
 1. **Clone the repository**:
 
    ```bash
