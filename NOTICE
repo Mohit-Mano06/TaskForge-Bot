@@ -1,5 +1,33 @@
-TaskForge-Bot
-Copyright (c) 2026 Mohit (Mohit-Mano06)
 
-This product includes software developed by Mohit.
-GitHub: https://github.com/Mohit-Mano06/TaskForge-Bot
+TASKFORGE – COPYRIGHT NOTICE
+
+Copyright (c) 2026 Mohit Manoharan.
+All Rights Reserved.
+
+TaskForge is proprietary software. All original source code,
+architecture, documentation, and implementations contained
+within this repository are owned by Mohit Manoharan.
+
+No permission is granted to copy, reproduce, modify, fork,
+redistribute, or commercially exploit this software without
+prior written permission from the copyright holder.
+
+This repository is made publicly available for viewing and
+portfolio evaluation purposes only.
+
+THIRD-PARTY ATTRIBUTION
+
+TaskForge uses third-party libraries and tools, including
+but not limited to:
+
+- discord.py
+- yt-dlp
+- FFmpeg
+- Mistral AI
+- Other Python packages listed in requirements.txt
+
+These components remain the property of their respective
+owners and are governed by their own licences and terms.
+
+This notice applies only to original work owned by
+the copyright holder.

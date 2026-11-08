@@ -1,4 +1,5 @@
-# TaskForge-Bot 🤖 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+# TaskForge-Bot 🤖
+![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)
 
 **TaskForge** is a high-performance, AI-powered Discord bot built with `discord.py`. It blends smart automation, server management, leaderboard tracking, music, and a rich economy system into one cohesive bot experience.
 
