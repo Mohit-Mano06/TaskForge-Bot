@@ -17,7 +17,8 @@ idea
 
 warnings.json
 r6_tracker.py
-.github
+.github/agents
+
 
 
 data/reminder.json
