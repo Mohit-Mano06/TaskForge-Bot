@@ -111,7 +111,7 @@ class Announcement(commands.Cog):
                 "timestamp": str(discord.utils.utcnow())
             }
 
-            await database.save_release(data)
+            await database.save_release(getattr(self.bot, "db_pool", None), data)
 
             await ctx.send("✅ AI Announcement sent successfully!", delete_after=5)
 
@@ -121,7 +121,7 @@ class Announcement(commands.Cog):
 
     @commands.command()
     async def latest(self, ctx):
-        latest_release = await database.get_latest_release()
+        latest_release = await database.get_latest_release(getattr(self.bot, "db_pool", None))
         if not latest_release:
             return await ctx.send("❌ No release data found or it's corrupted.", delete_after=5)
 

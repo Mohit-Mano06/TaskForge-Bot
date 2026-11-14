@@ -32,6 +32,15 @@ try:
 except ImportError:
     log_print("dotenv library not found. Ensure it is installed.", "warning")
 
+
+## Environment Configuration 
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production").strip().lower()
+
+if ENVIRONMENT not in ["production", "testing"]:
+    raise ValueError(f"Invalid ENVIRONMENT: {ENVIRONMENT}. Must be 'production' or 'testing'.")
+
+log_print(f"Running in {ENVIRONMENT.upper()} environment")
+
 TOKEN = os.getenv("TOKEN")
 MISTRAL_API_KEY = os.getenv("MISTRAL_TOKEN")
 
@@ -48,7 +57,10 @@ intents.voice_states = True
 intents.members = True
 log_print("Intents configured.")
 
-ALLOWED_CHANNEL_ID = 1469612261827022949
+if ENVIRONMENT == "testing":
+    ALLOWED_CHANNEL_ID = int(os.getenv("TEST_CHANNEL_ID", "0"))
+else: 
+    ALLOWED_CHANNEL_ID = int(os.getenv("ALLOWED_CHANNEL_ID", "0"))
 
 class TaskForgeBot(commands.Bot):
     def __init__(self):
@@ -57,6 +69,7 @@ class TaskForgeBot(commands.Bot):
             intents=intents,
             help_command=None
         )
+        self.db_pool: asyncpg.Pool | None = None
         self.mistral_client = Mistral(api_key=MISTRAL_API_KEY)
         self.process_start_time = time.time()
 
@@ -128,16 +141,6 @@ async def on_ready():
     except Exception as e:
         log_print(f"Warning: Could not send log message: {e}", "warning")
         
-    if database.USE_SUPABASE:
-        try:
-            connected = await database.check_supabase_connection()
-            if connected:
-                log_print("✅ Supabase REST API connected", "success")
-            else:
-                log_print("❌ Supabase REST API failed to connect", "error")
-        except Exception as e:
-            log_print(f"❌ Supabase error: {e}", "error")
-
     # Set maintenance presence if enabled
     if getattr(bot, 'maintenance_enabled', False):
         await bot.change_presence(activity=discord.Game(name="🛠️ Testing TaskForge"))
@@ -164,24 +167,36 @@ async def setup_hook():
     else:
         log_print("⚠️ Lavalink environment is incomplete; skipping Lavalink connection.", "warning")
 
-    # Initialize database pool
+    # PostgreSQL is required for all persistent bot data.
     db_url = os.getenv("DATABASE_URL")
     if db_url:
         try:
             bot.db_pool = await asyncpg.create_pool(dsn=db_url)
+
+            # Initialize general application tables
+            await database.ensure_app_schema(bot.db_pool)
+            log_print("✅ Application database schema initialized", "success")
+
+            # Initialize economy tables
             await economy_db.ensure_economy_schema(bot.db_pool)
+            log_print("✅ Economy database schema initialized", "success")
+
             log_print("✅ Connected to PostgreSQL database pool", "success")
+
         except Exception as e:
-            log_print(f"❌ Failed to connect or migrate PostgreSQL database: {e}", "error")
-            if not getattr(bot, 'db_pool', None):
-                bot.db_pool = None
+            log_print(f"❌ Failed to initialize PostgreSQL: {e}", "error")
+
+            if getattr(bot, "db_pool", None):
+                await bot.db_pool.close()
+
+            bot.db_pool = None
     else:
-        log_print("⚠️ DATABASE_URL not found in environment. Economy commands will be disabled.", "warning")
+        log_print("⚠️ DATABASE_URL not found. Database features will be disabled.", "warning")
         bot.db_pool = None
 
     # Load maintenance state
     try:
-        maintenance_state = await database.load_maintenance()
+        maintenance_state = await database.load_maintenance(bot.db_pool)
         bot.maintenance_enabled = maintenance_state.get("enabled", False)
         bot.maintenance_message = maintenance_state.get("message", "TaskForge is currently undergoing testing/maintenance.")
         log_print(f"Loaded maintenance state: enabled={bot.maintenance_enabled}")

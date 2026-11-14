@@ -29,7 +29,7 @@ class LeaderboardCommands(commands.Cog):
     async def generate_leaderboard_embed(self, ctx: commands.Context, stat_type: str, title: str, emoji: str, format_func=str):
         async with ctx.typing():
             guild_id = str(ctx.guild.id)
-            top_users = await database.get_top_leaderboard(guild_id, stat_type, limit=10)
+            top_users = await database.get_top_leaderboard(self.bot.db_pool, guild_id, stat_type, limit=10)
             
             if not top_users:
                 await ctx.send(f"No data available for the {title} leaderboard yet.")
@@ -85,7 +85,7 @@ class LeaderboardCommands(commands.Cog):
         """View the most active channels in the server"""
         async with ctx.typing():
             guild_id = str(ctx.guild.id)
-            top_channels = await database.get_top_channels(guild_id, limit=54)
+            top_channels = await database.get_top_channels(self.bot.db_pool, guild_id, limit=54)
             
             if not top_channels:
                 await ctx.send("No channel data available yet.")
@@ -154,7 +154,7 @@ class LeaderboardCommands(commands.Cog):
                 await msg.edit(content=f"⏳ Saving data to database... (Found {caller_count} messages for you)")
             except: pass
                 
-            await database.bulk_update_leaderboard_stats(guild_id, user_stats, chan_stats)
+            await database.bulk_update_leaderboard_stats(self.bot.db_pool, guild_id, user_stats, chan_stats)
             
             try:
                 await msg.edit(content=f"✅ Sync complete! (Found {caller_count} messages for you)")

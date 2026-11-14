@@ -17,8 +17,8 @@ class LeaderboardTracker(commands.Cog):
         user_id = str(message.author.id)
         channel_id = str(message.channel.id)
         
-        await database.update_leaderboard_stat(guild_id, user_id, "messages_count", 1)
-        await database.update_channel_stat(guild_id, channel_id, 1)
+        await database.update_leaderboard_stat(self.bot.db_pool, guild_id, user_id, "messages_count", 1)
+        await database.update_channel_stat(self.bot.db_pool, guild_id, channel_id, 1)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -39,7 +39,7 @@ class LeaderboardTracker(commands.Cog):
                 join_time = self.vc_sessions.pop(session_key)
                 duration = int(time.time() - join_time)
                 if duration > 0:
-                    await database.update_leaderboard_stat(guild_id, user_id, "vc_time", duration)
+                    await database.update_leaderboard_stat(self.bot.db_pool, guild_id, user_id, "vc_time", duration)
 
     @commands.Cog.listener()
     async def on_app_command_completion(self, interaction: discord.Interaction, command: discord.app_commands.Command):
@@ -49,7 +49,7 @@ class LeaderboardTracker(commands.Cog):
         guild_id = str(interaction.guild_id)
         user_id = str(interaction.user.id)
         
-        await database.update_leaderboard_stat(guild_id, user_id, "commands_used", 1)
+        await database.update_leaderboard_stat(self.bot.db_pool, guild_id, user_id, "commands_used", 1)
 
 async def setup(bot):
     await bot.add_cog(LeaderboardTracker(bot))

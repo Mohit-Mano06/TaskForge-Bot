@@ -13,7 +13,6 @@ class HealthSnapshot:
     discord_latency_ms: float
     database_status: str
     database_query_latency_ms: float | None
-    supabase_status: str
     mistral_configured: bool
     cpu_percent: float
     memory_mb: float
@@ -25,7 +24,7 @@ class HealthSnapshot:
     def overall_status(self) -> str:
         if not self.discord_ready or self.database_status == "Unreachable":
             return "unhealthy"
-        if self.database_status != "Connected" or self.supabase_status == "Unreachable":
+        if self.database_status != "Connected":
             return "degraded"
         if self.discord_latency_ms >= 500 or self.disk_percent >= 90:
             return "degraded"
@@ -54,20 +53,11 @@ async def collect_health_snapshot(bot) -> HealthSnapshot:
         except Exception:
             database_status = "Unreachable"
 
-    supabase_status = "Disabled"
-    try:
-        import database
-        if database.USE_SUPABASE:
-            supabase_status = "Healthy" if await database.check_supabase_connection() else "Unreachable"
-    except Exception:
-        supabase_status = "Unreachable"
-
     return HealthSnapshot(
         discord_ready=discord_ready,
         discord_latency_ms=discord_latency_ms,
         database_status=database_status,
         database_query_latency_ms=database_query_latency_ms,
-        supabase_status=supabase_status,
         mistral_configured=bool(os.getenv("MISTRAL_TOKEN")),
         cpu_percent=cpu_percent,
         memory_mb=memory_mb,
