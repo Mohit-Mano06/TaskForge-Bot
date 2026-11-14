@@ -45,7 +45,7 @@ class Reminder(commands.Cog):
         }
 
         self.active_reminders.append(reminder)
-        await database.save_reminders(self.active_reminders)
+        await database.save_reminders(self.bot.db_pool, self.active_reminders)
 
         await ctx.send(f"⏰ Reminder set for `{time_input}`: **{message}**")
     
@@ -68,12 +68,12 @@ class Reminder(commands.Cog):
         
         if updated:
             self.active_reminders = [r for r in self.active_reminders if r["status"] != "done"]
-            await database.save_reminders(self.active_reminders)
+            await database.save_reminders(self.bot.db_pool, self.active_reminders)
     
     @check_reminders.before_loop
     async def before_check_reminders(self):
         await self.bot.wait_until_ready()
-        self.active_reminders = await database.load_reminders()
+        self.active_reminders = await database.load_reminders(self.bot.db_pool)
 
 
 async def setup(bot):

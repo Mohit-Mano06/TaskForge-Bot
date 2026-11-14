@@ -1,72 +1,81 @@
 import json
 import os
 import aiofiles
-import aiohttp
-from datetime import datetime, timezone
+import asyncpg
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# Toggle this to True when you have added your Supabase credentials to .env
-USE_SUPABASE = os.getenv("USE_SUPABASE", "False") == "True"
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
 REMINDER_FILE = "data/reminder.json"
 VERSIONS_FILE = "data/versions.json"
 MAINTENANCE_FILE = "data/maintenance.json"
 
 
-async def supabase_request(method, endpoint, data=None, extra_headers=None):
-    if not USE_SUPABASE:
+async def ensure_app_schema(pool: asyncpg.Pool):
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS public.bot_data (
+                key text PRIMARY KEY,
+                value jsonb NOT NULL,
+                updated_at timestamptz NOT NULL DEFAULT now()
+            );
+            CREATE TABLE IF NOT EXISTS public.leaderboard (
+                guild_id text NOT NULL,
+                user_id text NOT NULL,
+                messages_count bigint NOT NULL DEFAULT 0,
+                vc_time bigint NOT NULL DEFAULT 0,
+                commands_used bigint NOT NULL DEFAULT 0,
+                PRIMARY KEY (guild_id, user_id)
+            );
+            CREATE TABLE IF NOT EXISTS public.channel_stats (
+                guild_id text NOT NULL,
+                channel_id text NOT NULL,
+                messages_count bigint NOT NULL DEFAULT 0,
+                PRIMARY KEY (guild_id, channel_id)
+            );
+            """
+        )
+
+
+async def _get_bot_data(pool: asyncpg.Pool | None, key: str):
+    if pool is None:
         return None
-    url = f"{SUPABASE_URL}/rest/v1/{endpoint}"
-    headers = {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation"
-    }
-    if extra_headers:
-        headers.update(extra_headers)
-        
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.request(method, url, headers=headers, json=data) as resp:
-                if resp.status >= 300:
-                    print(f"Supabase error ({resp.status}): {await resp.text()}")
-                    return None
-                
-                # Some requests (like empty POSTs) might not return JSON
-                text = await resp.text()
-                if not text:
-                    return []
-                return json.loads(text)
-        except Exception as e:
-            print(f"Supabase connection error: {e}")
-            return None
+    try:
+        value = await pool.fetchval("SELECT value FROM public.bot_data WHERE key = $1", key)
+        return json.loads(value) if isinstance(value, str) else value
+    except Exception as error:
+        print(f"PostgreSQL bot_data read failed: {error}")
+        return None
 
 
-async def check_supabase_connection():
-    """Checks if we can hit the REST API and the bot_data table exists."""
-    if not USE_SUPABASE:
-        return False
-    # Just try to fetch 1 row from bot_data
-    res = await supabase_request("GET", "bot_data?select=key&limit=1")
-    return res is not None
+async def _save_bot_data(pool: asyncpg.Pool | None, key: str, value: dict):
+    if pool is None:
+        return
+    try:
+        await pool.execute(
+            """
+            INSERT INTO public.bot_data (key, value)
+            VALUES ($1, $2::jsonb)
+            ON CONFLICT (key) DO UPDATE
+            SET value = EXCLUDED.value, updated_at = now()
+            """,
+            key,
+            json.dumps(value),
+        )
+    except Exception as error:
+        print(f"PostgreSQL bot_data write failed: {error}")
 
 
 # ==========================================
 # REMINDERS
 # ==========================================
 
-async def load_reminders() -> list:
-    """Async loads reminders from Supabase or JSON"""
-    if USE_SUPABASE:
-        res = await supabase_request("GET", "bot_data?key=eq.reminders&select=value")
-        if res and len(res) > 0:
-            return res[0].get("value", {}).get("reminders", [])
-        return []
+async def load_reminders(pool: asyncpg.Pool | None) -> list:
+    """Load reminders from PostgreSQL, falling back to the local JSON backup."""
+    value = await _get_bot_data(pool, "reminders")
+    if value is not None:
+        return value.get("reminders", [])
     
     # JSON Fallback
     if not os.path.exists(REMINDER_FILE):
@@ -82,12 +91,9 @@ async def load_reminders() -> list:
         print(f"Error loading reminders: {e}")
         return []
 
-async def save_reminders(reminders_list: list):
-    """Async saves reminders to Supabase or JSON"""
-    if USE_SUPABASE:
-        payload = {"key": "reminders", "value": {"reminders": reminders_list}}
-        # Upsert config: Merge duplicates means it will update existing row if key exists
-        await supabase_request("POST", "bot_data", data=payload, extra_headers={"Prefer": "resolution=merge-duplicates"})
+async def save_reminders(pool: asyncpg.Pool | None, reminders_list: list):
+    """Save reminders to PostgreSQL and refresh the local JSON backup."""
+    await _save_bot_data(pool, "reminders", {"reminders": reminders_list})
     
     # Always keep JSON updated as a backup!
     os.makedirs(os.path.dirname(REMINDER_FILE), exist_ok=True)
@@ -99,14 +105,12 @@ async def save_reminders(reminders_list: list):
 # VERSIONS / RELEASES
 # ==========================================
 
-async def get_latest_release():
-    """Async fetches the latest release from Supabase or JSON"""
-    if USE_SUPABASE:
-        res = await supabase_request("GET", "bot_data?key=eq.versions&select=value")
-        if res and len(res) > 0:
-            releases = res[0].get("value", {}).get("releases", [])
-            return releases[-1] if releases else None
-        return None
+async def get_latest_release(pool: asyncpg.Pool | None):
+    """Fetch the latest release from PostgreSQL or the local JSON backup."""
+    data = await _get_bot_data(pool, "versions")
+    if data is not None:
+        releases = data.get("releases", [])
+        return releases[-1] if releases else None
 
     if not os.path.exists(VERSIONS_FILE):
         return None
@@ -121,22 +125,18 @@ async def get_latest_release():
         print(f"Error loading latest release: {e}")
         return None
 
-async def save_release(release_data: dict):
-    """Async saves a new release to Supabase or JSON, removing duplicates"""
-    # Fetch existing from wherever we are loading it
-    file_data = {"releases": []}
-    
-    if USE_SUPABASE:
-        res = await supabase_request("GET", "bot_data?key=eq.versions&select=value")
-        if res and len(res) > 0:
-             file_data = res[0].get("value", {"releases": []})
-    elif os.path.exists(VERSIONS_FILE):
+async def save_release(pool: asyncpg.Pool | None, release_data: dict):
+    """Save a release to PostgreSQL and the local JSON backup, removing duplicates."""
+    file_data = await _get_bot_data(pool, "versions")
+    if file_data is None and os.path.exists(VERSIONS_FILE):
         try:
             async with aiofiles.open(VERSIONS_FILE, "r") as f:
                 content = await f.read()
                 file_data = json.loads(content)
         except Exception:
             pass
+    if file_data is None:
+        file_data = {"releases": []}
             
     if "releases" not in file_data:
         file_data["releases"] = []
@@ -148,203 +148,90 @@ async def save_release(release_data: dict):
     
     file_data["releases"].append(release_data)
 
-    if USE_SUPABASE:
-        payload = {"key": "versions", "value": file_data}
-        await supabase_request("POST", "bot_data", data=payload, extra_headers={"Prefer": "resolution=merge-duplicates"})
+    await _save_bot_data(pool, "versions", file_data)
     
     # Always update local JSON as backup
     os.makedirs(os.path.dirname(VERSIONS_FILE), exist_ok=True)
     async with aiofiles.open(VERSIONS_FILE, "w") as f:
         await f.write(json.dumps(file_data, indent=4))
 
-# ==========================================
-# ECONOMY & SHOP (SUPABASE ONLY)
-# ==========================================
-
-async def get_balance(user_id: str) -> dict:
-    """Returns {"balance": int, "last_daily": str} for a user."""
-    if not USE_SUPABASE:
-        return {"balance": 0, "last_daily": None}
-    
-    res = await supabase_request("GET", f"user_economy?user_id=eq.{user_id}&select=balance,last_daily")
-    if res and len(res) > 0:
-        return res[0]
-    return {"balance": 0, "last_daily": None}
-
-async def update_balance(user_id: str, amount: int, transaction_type: str, description: str = ""):
-    """Changes user balance by `amount` (can be negative) and logs transaction."""
-    if not USE_SUPABASE:
+async def update_leaderboard_stat(pool: asyncpg.Pool | None, guild_id: str, user_id: str, stat_type: str, amount: int):
+    if pool is None:
         return False
-        
-    current = await get_balance(user_id)
-    new_balance = current["balance"] + amount
-
-    # Upsert new balance
-    payload = {
-        "user_id": user_id,
-        "balance": new_balance
-    }
-    if current["last_daily"]:
-        payload["last_daily"] = current["last_daily"]
-
-    await supabase_request("POST", "user_economy", data=payload, extra_headers={"Prefer": "resolution=merge-duplicates"})
-    
-    # Log transaction
-    log_payload = {
-        "user_id": user_id,
-        "amount": amount,
-        "type": transaction_type,
-        "description": description
-    }
-    await supabase_request("POST", "transactions", data=log_payload)
+    if stat_type not in {"messages_count", "vc_time", "commands_used"}:
+        raise ValueError(f"Unsupported leaderboard stat: {stat_type}")
+    await pool.execute(
+        f"""
+        INSERT INTO public.leaderboard (guild_id, user_id, {stat_type})
+        VALUES ($1, $2, $3)
+        ON CONFLICT (guild_id, user_id) DO UPDATE
+        SET {stat_type} = leaderboard.{stat_type} + EXCLUDED.{stat_type}
+        """,
+        str(guild_id),
+        str(user_id),
+        amount,
+    )
     return True
 
-async def update_last_daily(user_id: str):
-    """Sets last_daily to current time."""
-    if not USE_SUPABASE:
+
+async def update_channel_stat(pool: asyncpg.Pool | None, guild_id: str, channel_id: str, amount: int):
+    if pool is None:
         return False
-    current = await get_balance(user_id)
-    payload = {
-        "user_id": user_id,
-        "balance": current["balance"],
-        "last_daily": datetime.now(timezone.utc).isoformat()
-    }
-    await supabase_request("POST", "user_economy", data=payload, extra_headers={"Prefer": "resolution=merge-duplicates"})
+    await pool.execute(
+        """
+        INSERT INTO public.channel_stats (guild_id, channel_id, messages_count)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (guild_id, channel_id) DO UPDATE
+        SET messages_count = channel_stats.messages_count + EXCLUDED.messages_count
+        """,
+        str(guild_id),
+        str(channel_id),
+        amount,
+    )
     return True
 
-async def get_shop_items() -> list:
-    if not USE_SUPABASE:
+
+async def get_top_channels(pool: asyncpg.Pool | None, guild_id: str, limit: int = 10) -> list:
+    if pool is None:
         return []
-    res = await supabase_request("GET", "shop_items?select=*")
-    return res if res else []
+    rows = await pool.fetch(
+        """
+        SELECT channel_id, messages_count FROM public.channel_stats
+        WHERE guild_id = $1 ORDER BY messages_count DESC LIMIT $2
+        """,
+        str(guild_id),
+        limit,
+    )
+    return [dict(row) for row in rows]
 
-async def get_inventory(user_id: str) -> list:
-    """Gets inventory joined with shop_items."""
-    if not USE_SUPABASE:
+
+async def get_top_leaderboard(pool: asyncpg.Pool | None, guild_id: str, stat_type: str, limit: int = 10) -> list:
+    if pool is None:
         return []
-    res = await supabase_request("GET", f"user_inventory?user_id=eq.{user_id}&select=id,quantity,item_id,shop_items(*)")
-    return res if res else []
+    if stat_type not in {"messages_count", "vc_time", "commands_used"}:
+        raise ValueError(f"Unsupported leaderboard stat: {stat_type}")
+    rows = await pool.fetch(
+        f"""
+        SELECT user_id, {stat_type} FROM public.leaderboard
+        WHERE guild_id = $1 ORDER BY {stat_type} DESC LIMIT $2
+        """,
+        str(guild_id),
+        limit,
+    )
+    return [dict(row) for row in rows]
 
-async def add_item_to_inventory(user_id: str, item_id: int, quantity: int = 1):
-    if not USE_SUPABASE:
+
+async def bulk_update_leaderboard_stats(pool: asyncpg.Pool | None, guild_id: str, user_stats: dict, channel_stats: dict | None = None):
+    if pool is None:
         return False
-        
-    res = await supabase_request("GET", f"user_inventory?user_id=eq.{user_id}&item_id=eq.{item_id}&select=id,quantity")
-    if res and len(res) > 0:
-        new_quantity = res[0]["quantity"] + quantity
-        inv_id = res[0]["id"]
-        # Update existing
-        await supabase_request("PATCH", f"user_inventory?id=eq.{inv_id}", data={"quantity": new_quantity})
-    else:
-        # Insert new
-        payload = {
-            "user_id": user_id,
-            "item_id": item_id,
-            "quantity": quantity
-        }
-        await supabase_request("POST", "user_inventory", data=payload)
-    return True
-
-# ==========================================
-# LEADERBOARD (SUPABASE ONLY)
-# ==========================================
-
-async def update_leaderboard_stat(guild_id: str, user_id: str, stat_type: str, amount: int):
-    """Updates a user's leaderboard stat (messages_count, vc_time, commands_used)."""
-    if not USE_SUPABASE:
-        return False
-        
-    # First, fetch existing stats
-    res = await supabase_request("GET", f"leaderboard?guild_id=eq.{guild_id}&user_id=eq.{user_id}&select=messages_count,vc_time,commands_used")
-    
-    current_stats = {
-        "messages_count": 0,
-        "vc_time": 0,
-        "commands_used": 0
-    }
-    
-    exists = False
-    if res and len(res) > 0:
-        current_stats.update(res[0])
-        exists = True
-        
-    current_stats[stat_type] += amount
-    
-    # Payload
-    payload = {
-        "guild_id": str(guild_id),
-        "user_id": str(user_id),
-        "messages_count": current_stats["messages_count"],
-        "vc_time": current_stats["vc_time"],
-        "commands_used": current_stats["commands_used"]
-    }
-    
-    if exists:
-        # Explicit PATCH update using the composite key
-        await supabase_request("PATCH", f"leaderboard?guild_id=eq.{guild_id}&user_id=eq.{user_id}", data=payload)
-    else:
-        # Explicit POST insert
-        await supabase_request("POST", "leaderboard", data=payload)
-        
-    return True
-
-async def update_channel_stat(guild_id: str, channel_id: str, amount: int):
-    """Increments the message count for a specific channel."""
-    if not USE_SUPABASE:
-        return False
-        
-    res = await supabase_request("GET", f"channel_stats?guild_id=eq.{guild_id}&channel_id=eq.{channel_id}&select=messages_count")
-    
-    current_count = 0
-    exists = False
-    if res and len(res) > 0:
-        current_count = res[0].get("messages_count", 0)
-        exists = True
-        
-    payload = {
-        "guild_id": str(guild_id),
-        "channel_id": str(channel_id),
-        "messages_count": current_count + amount
-    }
-    
-    if exists:
-        await supabase_request("PATCH", f"channel_stats?guild_id=eq.{guild_id}&channel_id=eq.{channel_id}", data=payload)
-    else:
-        await supabase_request("POST", "channel_stats", data=payload)
-    return True
-
-async def get_top_channels(guild_id: str, limit: int = 10) -> list:
-    """Gets the most active channels in a guild."""
-    if not USE_SUPABASE:
-        return []
-    res = await supabase_request("GET", f"channel_stats?guild_id=eq.{guild_id}&select=channel_id,messages_count&order=messages_count.desc&limit={limit}")
-    return res if res else []
-
-async def get_top_leaderboard(guild_id: str, stat_type: str, limit: int = 10) -> list:
-    """Gets top users for a specific stat in a guild."""
-    if not USE_SUPABASE:
-        return []
-    
-    res = await supabase_request("GET", f"leaderboard?guild_id=eq.{guild_id}&select=user_id,{stat_type}&order={stat_type}.desc&limit={limit}")
-    return res if res else []
-
-async def bulk_update_leaderboard_stats(guild_id: str, user_stats: dict, channel_stats: dict = None):
-    """
-    Upserts multiple users' and channels' message stats at once.
-    """
-    if not USE_SUPABASE:
-        return False
-        
-    # Update Users
     for user_id, stats in user_stats.items():
-        if "messages_count" in stats:
-            await update_leaderboard_stat(guild_id, user_id, "messages_count", stats["messages_count"])
-            
-    # Update Channels
+        count = stats.get("messages_count")
+        if count:
+            await update_leaderboard_stat(pool, guild_id, user_id, "messages_count", count)
     if channel_stats:
         for channel_id, count in channel_stats.items():
-            await update_channel_stat(guild_id, channel_id, count)
-            
+            if count:
+                await update_channel_stat(pool, guild_id, channel_id, count)
     return True
 
 
@@ -352,14 +239,12 @@ async def bulk_update_leaderboard_stats(guild_id: str, user_stats: dict, channel
 # MAINTENANCE STATE
 # ==========================================
 
-async def load_maintenance() -> dict:
-    """Async loads maintenance state from Supabase or JSON"""
+async def load_maintenance(pool: asyncpg.Pool | None) -> dict:
+    """Load maintenance state from PostgreSQL or the local JSON backup."""
     default_state = {"enabled": False, "message": "TaskForge is currently undergoing testing/maintenance."}
-    if USE_SUPABASE:
-        res = await supabase_request("GET", "bot_data?key=eq.maintenance&select=value")
-        if res and len(res) > 0:
-            return res[0].get("value", default_state)
-        return default_state
+    value = await _get_bot_data(pool, "maintenance")
+    if value is not None:
+        return value
     
     # JSON Fallback
     if not os.path.exists(MAINTENANCE_FILE):
@@ -375,11 +260,9 @@ async def load_maintenance() -> dict:
         print(f"Error loading maintenance state: {e}")
         return default_state
 
-async def save_maintenance(state: dict):
-    """Async saves maintenance state to Supabase or JSON"""
-    if USE_SUPABASE:
-        payload = {"key": "maintenance", "value": state}
-        await supabase_request("POST", "bot_data", data=payload, extra_headers={"Prefer": "resolution=merge-duplicates"})
+async def save_maintenance(pool: asyncpg.Pool | None, state: dict):
+    """Save maintenance state to PostgreSQL and the local JSON backup."""
+    await _save_bot_data(pool, "maintenance", state)
     
     # Always keep JSON updated as a backup!
     os.makedirs(os.path.dirname(MAINTENANCE_FILE), exist_ok=True)

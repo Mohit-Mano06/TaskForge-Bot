@@ -40,7 +40,6 @@ class System(commands.Cog):
         embed = discord.Embed(title="TaskForge Health", color=colors[snapshot.overall_status], timestamp=snapshot.checked_at)
         embed.add_field(name="Discord", value=f"{'Connected' if snapshot.discord_ready else 'Disconnected'}\n{snapshot.discord_latency_ms:.0f} ms", inline=True)
         embed.add_field(name="PostgreSQL", value=snapshot.database_status, inline=True)
-        embed.add_field(name="Supabase", value=snapshot.supabase_status, inline=True)
         embed.add_field(name="Mistral", value="Configured" if snapshot.mistral_configured else "Not configured", inline=True)
         embed.add_field(name="CPU", value=f"{snapshot.cpu_percent:.1f}%", inline=True)
         embed.add_field(name="Memory", value=f"{snapshot.memory_mb:.1f} MB", inline=True)

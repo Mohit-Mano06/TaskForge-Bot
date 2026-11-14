@@ -29,7 +29,7 @@ class Maintenance(commands.Cog):
         msg = message or "TaskForge is currently undergoing testing/maintenance."
         self.bot.maintenance_message = msg
         
-        await database.save_maintenance({
+        await database.save_maintenance(self.bot.db_pool, {
             "enabled": True,
             "message": msg
         })
@@ -45,7 +45,7 @@ class Maintenance(commands.Cog):
         """Disables maintenance mode"""
         self.bot.maintenance_enabled = False
         
-        await database.save_maintenance({
+        await database.save_maintenance(self.bot.db_pool, {
             "enabled": False,
             "message": self.bot.maintenance_message
         })

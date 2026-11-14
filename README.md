@@ -1,4 +1,5 @@
 # TaskForge-Bot 🤖
+
 ![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)
 
 **TaskForge** is a high-performance, AI-powered Discord bot built with `discord.py`. It blends smart automation, server management, leaderboard tracking, music, and a rich economy system into one cohesive bot experience.
@@ -194,20 +195,21 @@ Set `backend` to `lavalink` to test Lavalink playback. The optional `MUSIC_BACKE
    ```env
    TOKEN=your_discord_bot_token
    MISTRAL_TOKEN=your_mistral_api_key
-   DATABASE_URL=your_postgres_connection_string
-   USE_SUPABASE=True
-   SUPABASE_URL=your_supabase_project_url
-   SUPABASE_SERVICE_ROLE_KEY=your_supabase_key
+   DATABASE_URL=postgresql://taskforge:your_password@127.0.0.1:5432/taskforge
    ```
+
+   On the Oracle VM, point `DATABASE_URL` at the PostgreSQL instance TaskForge will use. Create the database and user first, and grant the user permission to create tables in the `public` schema. The bot creates all ten active tables automatically at startup and will stop with an error if PostgreSQL is unavailable or schema initialization fails.
+
+   For an empty database, no separate schema command is required. `economy_schema.sql` is also provided as a manual bootstrap/reference script. If you have existing data in a previous Supabase project that must be retained, migrate it before removing that source; the optional one-time importer only copies bot state and activity data.
 
 4. **Set up FFmpeg**:
 
-   Ensure `ffmpeg.exe` is in your system PATH or inside the repo's `cogs/music/ffmpeg/` folder.
+   Install FFmpeg on the Oracle VM and make sure the `ffmpeg` executable is available on `PATH`.
 
 5. **Run the bot**:
 
    ```bash
-   ./start.bat
+   python main.py
    ```
 
 ---

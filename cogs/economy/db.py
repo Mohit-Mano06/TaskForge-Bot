@@ -10,11 +10,12 @@ async def ensure_economy_schema(pool: asyncpg.Pool):
             CREATE TABLE IF NOT EXISTS public.economy_users (
                 user_id text NOT NULL,
                 guild_id text NOT NULL,
-                wallet integer NOT NULL DEFAULT 0,
-                bank integer NOT NULL DEFAULT 0,
-                xp integer NOT NULL DEFAULT 0,
-                level integer NOT NULL DEFAULT 1,
-                daily_streak integer NOT NULL DEFAULT 0,
+                wallet integer NOT NULL DEFAULT 0 CHECK (wallet >= 0),
+                bank integer NOT NULL DEFAULT 0 CHECK (bank >= 0),
+                xp integer NOT NULL DEFAULT 0 CHECK (xp >= 0),
+                level integer NOT NULL DEFAULT 1 CHECK (level >= 1),
+                daily_streak integer NOT NULL DEFAULT 0 CHECK (daily_streak >= 0),
+                prestige integer NOT NULL DEFAULT 0 CHECK (prestige >= 0),
                 last_daily timestamptz,
                 created_at timestamptz NOT NULL DEFAULT now(),
                 updated_at timestamptz NOT NULL DEFAULT now(),
@@ -24,7 +25,7 @@ async def ensure_economy_schema(pool: asyncpg.Pool):
                 user_id text NOT NULL,
                 guild_id text NOT NULL,
                 item_id text NOT NULL,
-                quantity integer NOT NULL DEFAULT 1,
+                quantity integer NOT NULL DEFAULT 1 CHECK (quantity > 0),
                 PRIMARY KEY (user_id, guild_id, item_id)
             );
             CREATE TABLE IF NOT EXISTS public.economy_transactions (
@@ -45,21 +46,8 @@ async def ensure_economy_schema(pool: asyncpg.Pool):
                 guild_id text NOT NULL,
                 achievement_id text NOT NULL,
                 unlocked_at timestamptz NOT NULL DEFAULT now(),
-                PRIMARY KEY (user_id, guild_id, achievement_id)
-            );
-            CREATE TABLE IF NOT EXISTS public.economy_pets (
-                pet_id text PRIMARY KEY,
-                name text NOT NULL,
-                description text NOT NULL,
-                emoji text NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS public.economy_user_pets (
-                user_id text NOT NULL,
-                guild_id text NOT NULL,
-                pet_id text NOT NULL REFERENCES public.economy_pets(pet_id),
-                equipped boolean NOT NULL DEFAULT false,
-                adopted_at timestamptz NOT NULL DEFAULT now(),
-                PRIMARY KEY (user_id, guild_id, pet_id)
+                PRIMARY KEY (user_id, guild_id, achievement_id),
+                FOREIGN KEY (achievement_id) REFERENCES public.economy_achievements(achievement_id)
             );
             CREATE TABLE IF NOT EXISTS public.economy_pets (
                 pet_id text PRIMARY KEY,
