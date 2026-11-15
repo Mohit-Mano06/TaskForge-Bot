@@ -131,7 +131,7 @@ class VoiceFun(commands.Cog):
 
         source_perms = source.permissions_for(bot_member)
 
-        if not source_perms.view channel or not source_perms.move_members:
+        if not source_perms.view_channel or not source_perms.move_members:
             return await ctx.send("❌ I do not have permission to View Channel and Move Members from the source channel.")
 
         # Random destination if not provided 
