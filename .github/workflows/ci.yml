@@ -1,0 +1,45 @@
+name: TaskForge CI
+on: 
+  push:
+    branches: 
+      - main 
+      - feature/ci-cd-pipeline
+
+
+  pull_request:
+    branches:
+      - main
+
+
+jobs: 
+  validate:
+    name: Validate TaskForge
+    runs-on: ubuntu-latest
+
+    steps: 
+      
+      # Downloading the github repo onto the Github runner 
+      - name: Checkout respository
+        uses: actions/checkout@v4
+
+      # Install python version specified 
+      - name: Set up Python 
+        uses: actions/setup-python@v5
+        with: 
+          python-version-file: ".python-version"
+      
+      # Install the uv package manager
+      - name: Install uv package manager
+        uses: astral-sh/setup-uv@v6
+      
+      # Install dependencies 
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # Verify that installed dependencies are compatible 
+      - name: Check dependency consistency 
+        run: uv pip check --python .venv/bin/python
+
+      # Check python files for syntax errors
+      - name: Check Python Syntax
+        run: uv run python -m compileall -q .
