@@ -8,11 +8,15 @@ This document outlines the folder structure and the purpose of each file in the 
 | ------------------- | --------------------------------------------------------------------------- |
 | `main.py`           | Entry point. Handles startup, extension loading, and global error handling. |
 | `.env`              | **Secret**. Contains `TOKEN` and `MISTRAL_TOKEN`. Do not commit!            |
-| `config_example.py` | Template for environment variable setup.                                    |
 | `requirements.txt`  | Python library dependencies.                                                |
 | `README.md`         | Setup instructions and feature overview.                                    |
-| `logger.py`         | Specialized logging utility for moderation events.                          |
 | `start.bat`         | Windows batch script to launch the bot.                                     |
+
+## 🧰 Utilities Directory (`/utils`)
+
+- `bot_logger.py`: Routes terminal output through the rich UI or plain `print()`.
+- `logger.py`: Sends bot events to the configured logging channel.
+- `rich_terminal.py`: Rich terminal logging and extension-loading UI.
 
 ---
 

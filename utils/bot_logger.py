@@ -1,11 +1,11 @@
-# bot_logger.py — TaskForge-Bot
+# utils/bot_logger.py — TaskForge-Bot
 # Handles terminal output routing.
-# Import this in main.py with:  from bot_logger import log_print, RICH_ENABLED, rich_terminal
+# Import this in main.py with:  from utils.bot_logger import log_print, RICH_ENABLED, rich_terminal
 #
-# To disable rich UI: simply delete rich_terminal.py — this file will fall back to plain print().
+# To disable rich UI: remove utils/rich_terminal.py — this file will fall back to plain print().
 
 try:
-    import rich_terminal
+    from . import rich_terminal
     RICH_ENABLED = True
 
     def log_print(msg: str, level: str = "info"):

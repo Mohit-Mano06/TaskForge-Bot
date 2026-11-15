@@ -15,8 +15,8 @@ from mistralai.client import Mistral
 import database
 import asyncpg
 import wavelink
-from logger import send_log
-from bot_logger import log_print, RICH_ENABLED, rich_terminal
+from utils.logger import send_log
+from utils.bot_logger import log_print, RICH_ENABLED, rich_terminal
 from cogs.admin.config import OWNER_IDS, DEV_GUILD_ID
 from cogs.economy import db as economy_db
 
