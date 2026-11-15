@@ -162,7 +162,7 @@ class VoiceFun(commands.Cog):
 
             channel_name = discord.utils.escape_markdown(destination.name)
 
-            await ctx.send(f"✅ Yeeted **{member_name}** to **{channel_name}**." allowed_mentions=discord.AllowedMentions.none())
+            await ctx.send(f"✅ Yeeted **{member_name}** to **{channel_name}**.", allowed_mentions=discord.AllowedMentions.none())
 
         except discord.Forbidden:
             return await ctx.send("❌ Discord denied voice channel movement.", allowed_mentions=discord.AllowedMentions.none())
