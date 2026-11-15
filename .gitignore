@@ -9,8 +9,7 @@ cogs/setupguide.py
 economy_schema.sql
 agents.md
 
-uv.lock
-pyproject.toml
+
 Prompt.md
 
 idea
