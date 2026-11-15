@@ -206,7 +206,7 @@ async def setup_hook():
         bot.maintenance_message = "TaskForge is currently undergoing testing/maintenance."
 
     extensions = [
-        "cogs.utility.tools", "cogs.general.help", "cogs.general.info", "cogs.utility.reminder",
+        "cogs.utility.tools", "cogs.utility.voice_fun", "cogs.general.help", "cogs.general.info", "cogs.utility.reminder",
         "cogs.music.player", "cogs.admin.moderation",
         "cogs.admin.maintenance",
         "cogs.social.confession", "cogs.general.announcement", "cogs.general.guide",
