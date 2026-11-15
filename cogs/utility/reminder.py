@@ -4,17 +4,13 @@ import time
 import database
 
 def parse_time(time_str):
-    try: 
+    try:
         amount = int(time_str[:-1])
-        unit = time_str[-1]
-
-        if unit == "s" or "S": return amount 
-        elif unit == "m" or "M": return amount * 60
-        elif unit == "h" or "H": return amount * 3600
-        elif unit == "d" or "D": return amount * 86400
-        else: return None
-    except: 
-        return None 
+        unit = time_str[-1].lower()
+        multiplier = {"s": 1, "m": 60, "h": 3600, "d": 86400}.get(unit)
+        return amount * multiplier if multiplier is not None else None
+    except (IndexError, ValueError):
+        return None
 
 # Creating Reminder COG 
 
